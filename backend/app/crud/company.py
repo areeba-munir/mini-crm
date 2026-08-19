@@ -29,3 +29,8 @@ def list_companies(db: Session) -> Sequence[Company]:
     )
 
     return db.scalars(statement).all()
+def get_company(
+    db: Session,
+    company_id: int,
+) -> Company | None:
+    return db.get(Company, company_id)

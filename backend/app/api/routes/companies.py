@@ -1,13 +1,15 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from sqlalchemy.orm import Session
 
 from app.crud.company import (
     create_company as create_company_record,
+    get_company as get_company_record,
     list_companies as list_company_records,
 )
+
 from app.db.session import get_db
 from app.models.company import Company
 from app.schemas.company import CompanyCreate, CompanyRead
@@ -39,3 +41,20 @@ def create_company(
     db: Annotated[Session, Depends(get_db)],
 ) -> Company:
     return create_company_record(db, company_data)
+@router.get(
+    "/{company_id}",
+    response_model=CompanyRead,
+)
+def get_company(
+    company_id: Annotated[int, Path(ge=1)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Company:
+    company = get_company_record(db, company_id)
+
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
+    return company
