@@ -202,3 +202,58 @@ A task represents work assigned to a CRM user.
 - All three may be `NULL` for a general task.
 - `completed_at` is set when status changes to `Completed`.
 - `completed_at` is cleared if a completed task is reopened.
+## Meeting Entity
+
+A meeting represents a scheduled interaction with client contacts and CRM users.
+
+### Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `id` | Automatic | Unique meeting identifier |
+| `title` | Yes | Meeting subject |
+| `description` | No | Meeting purpose or agenda |
+| `starts_at` | Yes | Starting date and time |
+| `ends_at` | Yes | Ending date and time |
+| `location` | No | Physical meeting location |
+| `meeting_link` | No | Online meeting URL |
+| `notes` | No | Meeting-specific notes |
+| `status` | Yes | Defaults to `Scheduled` |
+| `organizer_id` | Yes | User responsible for the meeting |
+| `company_id` | No | Company associated with the meeting |
+| `created_at` | Automatic | Date and time the meeting was created |
+| `updated_at` | Automatic | Date and time the meeting was updated |
+
+### Statuses
+
+- `Scheduled`
+- `Completed`
+- `Cancelled`
+
+### User participants
+
+The `meeting_user_participants` join table contains:
+
+| Field | Description |
+|---|---|
+| `meeting_id` | References `meetings.id` |
+| `user_id` | References `users.id` |
+
+### Contact participants
+
+The `meeting_contact_participants` join table contains:
+
+| Field | Description |
+|---|---|
+| `meeting_id` | References `meetings.id` |
+| `contact_id` | References `contacts.id` |
+
+### Rules
+
+- `ends_at` must be later than `starts_at`.
+- Dates and times are stored in UTC.
+- The application displays dates in the user's local timezone.
+- The same user cannot be added to a meeting twice.
+- The same contact cannot be added to a meeting twice.
+- `meetings.organizer_id` references `users.id`.
+- `meetings.company_id` references `companies.id`.
