@@ -1,11 +1,12 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 from sqlalchemy.orm import Session
 
 from app.crud.company import (
     create_company as create_company_record,
+    delete_company as delete_company_record,
     get_company as get_company_record,
     list_companies as list_company_records,
     update_company as update_company_record,
@@ -84,3 +85,21 @@ def update_company(
         company,
         company_data,
     )
+@router.delete(
+    "/{company_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_company(
+    company_id: Annotated[int, Path(ge=1)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    company = get_company_record(db, company_id)
+
+    if company is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
+    delete_company_record(db, company)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

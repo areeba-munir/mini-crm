@@ -53,3 +53,14 @@ def update_company(
 
     db.refresh(company)
     return company
+def delete_company(
+    db: Session,
+    company: Company,
+) -> None:
+    db.delete(company)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
