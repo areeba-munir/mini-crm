@@ -289,3 +289,29 @@ A note stores written information related to a company, contact, or lead.
 - The authenticated user automatically becomes the author.
 - All authenticated CRM users may read notes.
 - Only the note author may edit or delete their note.
+## Complete Relationship Diagram
+
+```mermaid
+erDiagram
+    COMPANY o|--o{ CONTACT : has
+    COMPANY ||--o{ LEAD : has
+    CONTACT o|--o{ LEAD : primary_contact
+
+    USER ||--o{ TASK : assigned_to
+    USER ||--o{ TASK : created_by
+    COMPANY o|--o{ TASK : relates_to
+    CONTACT o|--o{ TASK : relates_to
+    LEAD o|--o{ TASK : relates_to
+
+    USER ||--o{ MEETING : organizes
+    COMPANY o|--o{ MEETING : relates_to
+    MEETING ||--o{ MEETING_USER_PARTICIPANT : includes
+    USER ||--o{ MEETING_USER_PARTICIPANT : attends
+    MEETING ||--o{ MEETING_CONTACT_PARTICIPANT : includes
+    CONTACT ||--o{ MEETING_CONTACT_PARTICIPANT : attends
+
+    USER ||--o{ NOTE : writes
+    COMPANY o|--o{ NOTE : receives
+    CONTACT o|--o{ NOTE : receives
+    LEAD o|--o{ NOTE : receives
+```
