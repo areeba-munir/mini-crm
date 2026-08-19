@@ -72,3 +72,52 @@ A contact must have a first name. Other details can be added later.
 Multiple contacts may have the same `company_id`, which creates the one-to-many relationship.
 
 If `company_id` is `NULL`, the contact is not currently linked to a company.
+
+## Lead Entity
+
+A lead represents a possible sale or business opportunity.
+
+A lead must belong to a company and may optionally identify a primary contact.
+
+### User-entered fields
+
+| Field | Required | Description |
+|---|---|---|
+| `title` | Yes | Name of the sales opportunity |
+| `company_id` | Yes | Company associated with the lead |
+| `contact_id` | No | Primary contact for the opportunity |
+| `stage` | Yes | Current pipeline stage; defaults to `New` |
+| `estimated_value` | No | Possible monetary value of the lead |
+| `source` | No | Where the lead came from |
+| `expected_close_date` | No | Estimated completion date |
+| `description` | No | Additional information |
+
+### Automatically managed fields
+
+| Field | Description |
+|---|---|
+| `id` | Unique identifier |
+| `created_at` | Date and time the lead was created |
+| `updated_at` | Date and time the lead was last updated |
+
+### Relationships
+
+`leads.company_id` references `companies.id`.
+
+`leads.contact_id` references `contacts.id`.
+
+If a primary contact is selected, that contact must belong to the same company as the lead.
+
+### Pipeline stages
+
+Allowed stages are:
+
+1. `New`
+2. `Contacted`
+3. `Qualified`
+4. `Won`
+5. `Lost`
+
+`Won` and `Lost` are closed stages.
+
+The estimated value cannot be negative.
