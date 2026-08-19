@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     db_host: str
     db_port: int = 5432
     db_name: str
+    db_test_name: str = "mini_crm_test"
     db_user: str
     db_password: SecretStr
 
@@ -33,6 +34,9 @@ class Settings(BaseSettings):
             port=self.db_port,
             database=self.db_name,
         )
+    @property
+    def test_database_url(self) -> URL:
+        return self.database_url.set(database=self.db_test_name)
 
 
 @lru_cache
