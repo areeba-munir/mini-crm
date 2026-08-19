@@ -3,8 +3,7 @@ from pydantic import ValidationError
 from datetime import UTC, datetime
 
 from app.models.company import Company
-
-from app.schemas.company import CompanyCreate, CompanyRead
+from app.schemas.company import CompanyCreate, CompanyRead, CompanyUpdate
 
 
 def test_company_create_strips_name_whitespace() -> None:
@@ -31,3 +30,20 @@ def test_company_read_accepts_sqlalchemy_model() -> None:
     assert response.id == 1
     assert response.name == "Acme Ltd"
     assert response.created_at == now
+
+def test_company_update_includes_only_provided_fields() -> None:
+    update = CompanyUpdate(industry="Business Software")
+
+    assert update.model_dump(exclude_unset=True) == {
+        "industry": "Business Software",
+    }
+
+
+def test_company_update_rejects_blank_name() -> None:
+    with pytest.raises(ValidationError):
+        CompanyUpdate(name="   ")
+
+
+def test_company_update_rejects_null_name() -> None:
+    with pytest.raises(ValidationError):
+        CompanyUpdate(name=None)

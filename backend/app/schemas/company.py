@@ -17,6 +17,25 @@ class CompanyCreate(BaseModel):
         if isinstance(value, str):
             return value.strip()
         return value
+    
+class CompanyUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    industry: str | None = Field(default=None, max_length=100)
+    website: str | None = Field(default=None, max_length=500)
+    email: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+    address: str | None = None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def clean_name(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Company name cannot be null")
+
+        if isinstance(value, str):
+            return value.strip()
+
+        return value
 
 class CompanyRead(CompanyCreate):
     id: int
