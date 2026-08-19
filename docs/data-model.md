@@ -121,3 +121,35 @@ Allowed stages are:
 `Won` and `Lost` are closed stages.
 
 The estimated value cannot be negative.
+
+## User Entity
+
+A user is an authorized person who can sign in to the CRM.
+
+### User-entered fields
+
+| Field | Required | Description |
+|---|---|---|
+| `full_name` | Yes | User's display name |
+| `email` | Yes | Unique email used to sign in |
+| `password` | Yes | Accepted by the API but never stored directly |
+
+### Stored fields
+
+| Field | Description |
+|---|---|
+| `id` | Unique user identifier |
+| `full_name` | User's display name |
+| `email` | Normalized lowercase email |
+| `password_hash` | Secure one-way hash of the password |
+| `is_active` | Whether the account may sign in |
+| `created_at` | Date and time the user was created |
+| `updated_at` | Date and time the user was last updated |
+
+### Rules
+
+- Every email must be unique.
+- Emails are stored in lowercase.
+- Plain-text passwords must never be stored or logged.
+- `is_active` defaults to `true`.
+- Roles and permissions are not part of the core version.
