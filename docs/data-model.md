@@ -257,3 +257,35 @@ The `meeting_contact_participants` join table contains:
 - The same contact cannot be added to a meeting twice.
 - `meetings.organizer_id` references `users.id`.
 - `meetings.company_id` references `companies.id`.
+
+## Note Entity
+
+A note stores written information related to a company, contact, or lead.
+
+### Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `id` | Automatic | Unique note identifier |
+| `body` | Yes | Note content |
+| `author_id` | Automatic | User who created the note |
+| `company_id` | Conditional | Related company |
+| `contact_id` | Conditional | Related contact |
+| `lead_id` | Conditional | Related lead |
+| `created_at` | Automatic | Date and time the note was created |
+| `updated_at` | Automatic | Date and time the note was updated |
+
+### Relationships
+
+- `notes.author_id` references `users.id`.
+- `notes.company_id` references `companies.id`.
+- `notes.contact_id` references `contacts.id`.
+- `notes.lead_id` references `leads.id`.
+
+### Rules
+
+- The note body cannot be empty.
+- Exactly one of `company_id`, `contact_id`, or `lead_id` must be set.
+- The authenticated user automatically becomes the author.
+- All authenticated CRM users may read notes.
+- Only the note author may edit or delete their note.
