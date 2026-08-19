@@ -153,3 +153,52 @@ A user is an authorized person who can sign in to the CRM.
 - Plain-text passwords must never be stored or logged.
 - `is_active` defaults to `true`.
 - Roles and permissions are not part of the core version.
+## Task Entity
+
+A task represents work assigned to a CRM user.
+
+### Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `id` | Automatic | Unique task identifier |
+| `title` | Yes | Short description of the work |
+| `description` | No | Additional instructions |
+| `status` | Yes | Defaults to `Pending` |
+| `priority` | Yes | Defaults to `Medium` |
+| `due_at` | No | Due date and time |
+| `assigned_to_id` | Yes | User responsible for the task |
+| `created_by_id` | Automatic | User who created the task |
+| `company_id` | No | Related company |
+| `contact_id` | No | Related contact |
+| `lead_id` | No | Related lead |
+| `completed_at` | No | Date and time the task was completed |
+| `created_at` | Automatic | Date and time the task was created |
+| `updated_at` | Automatic | Date and time the task was last updated |
+
+### Statuses
+
+- `Pending`
+- `In Progress`
+- `Completed`
+
+### Priorities
+
+- `Low`
+- `Medium`
+- `High`
+
+### Relationships
+
+- `tasks.assigned_to_id` references `users.id`.
+- `tasks.created_by_id` references `users.id`.
+- `tasks.company_id` references `companies.id`.
+- `tasks.contact_id` references `contacts.id`.
+- `tasks.lead_id` references `leads.id`.
+
+### Rules
+
+- At most one of `company_id`, `contact_id`, or `lead_id` may be set.
+- All three may be `NULL` for a general task.
+- `completed_at` is set when status changes to `Completed`.
+- `completed_at` is cleared if a completed task is reopened.
