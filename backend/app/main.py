@@ -1,8 +1,13 @@
+from app.api.routes import companies
 from fastapi import FastAPI
 
 app = FastAPI(
     title="Mini CRM API",
     version="0.1.0",
+)
+app.include_router(
+    companies.router,
+    prefix="/api/v1",
 )
 
 
