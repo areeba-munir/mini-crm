@@ -235,3 +235,208 @@ def test_get_missing_task_returns_404(
     assert response.json() == {
         "detail": "Task not found",
     }
+
+def test_update_task_fields(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Original Task",
+            "assigned_to_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/tasks/{task['id']}",
+        json={
+            "title": "Updated Task",
+            "priority": "High",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Updated Task"
+    assert response.json()["priority"] == "High"
+
+
+def test_update_task_sets_completed_at(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Complete this task",
+            "assigned_to_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/tasks/{task['id']}",
+        json={"status": "Completed"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "Completed"
+    assert response.json()["completed_at"] is not None
+
+
+def test_update_task_clears_completed_at_when_reopened(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Reopen this task",
+            "assigned_to_id": current_user["id"],
+            "status": "Completed",
+        },
+    ).json()
+
+    assert task["completed_at"] is not None
+
+    response = authenticated_client.patch(
+        f"/api/v1/tasks/{task['id']}",
+        json={"status": "In Progress"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "In Progress"
+    assert response.json()["completed_at"] is None
+
+
+def test_update_task_can_switch_related_entity(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Task Relationship Company"},
+    ).json()
+
+    contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "company_id": company["id"],
+        },
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Switch relationship",
+            "assigned_to_id": current_user["id"],
+            "company_id": company["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/tasks/{task['id']}",
+        json={
+            "company_id": None,
+            "contact_id": contact["id"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["company_id"] is None
+    assert response.json()["contact_id"] == contact["id"]
+
+
+def test_update_task_rejects_multiple_related_entities(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Invalid Task Relationship"},
+    ).json()
+
+    contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "company_id": company["id"],
+        },
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Invalid update task",
+            "assigned_to_id": current_user["id"],
+            "company_id": company["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/tasks/{task['id']}",
+        json={"contact_id": contact["id"]},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": (
+            "A task may relate to at most one "
+            "company, contact, or lead"
+        ),
+    }
+
+
+def test_update_task_rejects_missing_assigned_user(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Reassignment task",
+            "assigned_to_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/tasks/{task['id']}",
+        json={"assigned_to_id": 999999},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Assigned user not found",
+    }
+
+
+def test_update_task_returns_404_when_missing(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.patch(
+        "/api/v1/tasks/999999",
+        json={"priority": "High"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Task not found",
+    }

@@ -9,7 +9,7 @@ from app.models.task import (
     TaskPriority,
     TaskStatus,
 )
-from app.schemas.task import TaskCreate
+from app.schemas.task import TaskCreate, TaskUpdate
 
 
 def create_task(
@@ -77,3 +77,44 @@ def get_task(
     task_id: int,
 ) -> Task | None:
     return db.get(Task, task_id)
+
+def update_task(
+    db: Session,
+    task: Task,
+    task_data: TaskUpdate,
+) -> Task:
+    update_data = task_data.model_dump(
+        exclude_unset=True
+    )
+
+    previous_status = task.status
+    new_status = update_data.get(
+        "status",
+        previous_status,
+    )
+
+    if (
+        previous_status != TaskStatus.COMPLETED
+        and new_status == TaskStatus.COMPLETED
+    ):
+        update_data["completed_at"] = (
+            datetime.now(timezone.utc)
+        )
+
+    if (
+        previous_status == TaskStatus.COMPLETED
+        and new_status != TaskStatus.COMPLETED
+    ):
+        update_data["completed_at"] = None
+
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(task)
+    return task

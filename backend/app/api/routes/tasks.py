@@ -25,6 +25,7 @@ from app.crud.task import (
     create_task as create_task_record,
     get_task as get_task_record,
     list_tasks as list_task_records,
+    update_task as update_task_record,
 )
 from app.db.session import get_db
 from app.models.task import (
@@ -33,8 +34,11 @@ from app.models.task import (
     TaskStatus,
 )
 from app.models.user import User
-from app.schemas.task import TaskCreate, TaskRead
-
+from app.schemas.task import (
+    TaskCreate,
+    TaskRead,
+    TaskUpdate,
+)
 
 router = APIRouter(
     prefix="/tasks",
@@ -168,4 +172,113 @@ def create_task(
         db,
         task_data,
         created_by_id=current_user.id,
+    )
+
+@router.patch(
+    "/{task_id}",
+    response_model=TaskRead,
+)
+def update_task(
+    task_data: TaskUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    task_id: int = Path(ge=1),
+) -> Task:
+    task = get_task_record(db, task_id)
+
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    if "assigned_to_id" in task_data.model_fields_set:
+        assigned_user = db.get(
+            User,
+            task_data.assigned_to_id,
+        )
+
+        if assigned_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assigned user not found",
+            )
+
+        if not assigned_user.is_active:
+            raise HTTPException(
+                status_code=(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT
+                ),
+                detail=(
+                    "Cannot assign a task "
+                    "to an inactive user"
+                ),
+            )
+
+    company_id = (
+        task_data.company_id
+        if "company_id" in task_data.model_fields_set
+        else task.company_id
+    )
+    contact_id = (
+        task_data.contact_id
+        if "contact_id" in task_data.model_fields_set
+        else task.contact_id
+    )
+    lead_id = (
+        task_data.lead_id
+        if "lead_id" in task_data.model_fields_set
+        else task.lead_id
+    )
+
+    related_ids = (
+        company_id,
+        contact_id,
+        lead_id,
+    )
+
+    if sum(
+        value is not None
+        for value in related_ids
+    ) > 1:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_422_UNPROCESSABLE_CONTENT
+            ),
+            detail=(
+                "A task may relate to at most one "
+                "company, contact, or lead"
+            ),
+        )
+
+    if (
+        company_id is not None
+        and get_company_record(db, company_id) is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
+    if (
+        contact_id is not None
+        and get_contact_record(db, contact_id) is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+
+    if (
+        lead_id is not None
+        and get_lead_record(db, lead_id) is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead not found",
+        )
+
+    return update_task_record(
+        db,
+        task,
+        task_data,
     )
