@@ -1,8 +1,14 @@
+from collections.abc import Sequence
 from datetime import datetime, timezone
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.task import Task, TaskStatus
+from app.models.task import (
+    Task,
+    TaskPriority,
+    TaskStatus,
+)
 from app.schemas.task import TaskCreate
 
 
@@ -33,3 +39,41 @@ def create_task(
 
     db.refresh(task)
     return task
+
+
+def list_tasks(
+    db: Session,
+    status: TaskStatus | None = None,
+    priority: TaskPriority | None = None,
+    assigned_to_id: int | None = None,
+) -> Sequence[Task]:
+    statement = select(Task)
+
+    if status is not None:
+        statement = statement.where(
+            Task.status == status
+        )
+
+    if priority is not None:
+        statement = statement.where(
+            Task.priority == priority
+        )
+
+    if assigned_to_id is not None:
+        statement = statement.where(
+            Task.assigned_to_id == assigned_to_id
+        )
+
+    statement = statement.order_by(
+        Task.due_at.asc().nulls_last(),
+        Task.id.desc(),
+    )
+
+    return db.scalars(statement).all()
+
+
+def get_task(
+    db: Session,
+    task_id: int,
+) -> Task | None:
+    return db.get(Task, task_id)

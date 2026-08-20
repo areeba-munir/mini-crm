@@ -1,9 +1,12 @@
+from collections.abc import Sequence
 from typing import Annotated
 
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Path,
+    Query,
     status,
 )
 from sqlalchemy.orm import Session
@@ -20,9 +23,15 @@ from app.crud.lead import (
 )
 from app.crud.task import (
     create_task as create_task_record,
+    get_task as get_task_record,
+    list_tasks as list_task_records,
 )
 from app.db.session import get_db
-from app.models.task import Task
+from app.models.task import (
+    Task,
+    TaskPriority,
+    TaskStatus,
+)
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskRead
 
@@ -34,6 +43,51 @@ router = APIRouter(
         Depends(get_current_user),
     ],
 )
+
+
+@router.get(
+    "",
+    response_model=list[TaskRead],
+)
+def get_tasks(
+    db: Annotated[Session, Depends(get_db)],
+    task_status: TaskStatus | None = Query(
+        default=None,
+        alias="status",
+    ),
+    priority: TaskPriority | None = Query(
+        default=None,
+    ),
+    assigned_to_id: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+) -> Sequence[Task]:
+    return list_task_records(
+        db,
+        status=task_status,
+        priority=priority,
+        assigned_to_id=assigned_to_id,
+    )
+
+
+@router.get(
+    "/{task_id}",
+    response_model=TaskRead,
+)
+def get_task(
+    db: Annotated[Session, Depends(get_db)],
+    task_id: int = Path(ge=1),
+) -> Task:
+    task = get_task_record(db, task_id)
+
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    return task
 
 
 @router.post(

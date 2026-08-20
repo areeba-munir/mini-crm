@@ -153,3 +153,85 @@ def test_task_endpoints_require_authentication(
     )
 
     assert response.status_code == 401
+
+def test_list_tasks_returns_empty_list(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/tasks"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_tasks_filters_status_and_priority(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    for title, task_status, priority in [
+        ("Pending High", "Pending", "High"),
+        ("Completed High", "Completed", "High"),
+        ("Pending Low", "Pending", "Low"),
+    ]:
+        authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": title,
+                "assigned_to_id": current_user["id"],
+                "status": task_status,
+                "priority": priority,
+            },
+        )
+
+    response = authenticated_client.get(
+        "/api/v1/tasks",
+        params={
+            "status": "Pending",
+            "priority": "High",
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["title"] == "Pending High"
+
+
+def test_get_task(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Task Detail Test",
+            "assigned_to_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.get(
+        f"/api/v1/tasks/{task['id']}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == task["id"]
+    assert response.json()["title"] == "Task Detail Test"
+
+
+def test_get_missing_task_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/tasks/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Task not found",
+    }
