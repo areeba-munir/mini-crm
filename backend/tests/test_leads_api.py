@@ -454,3 +454,44 @@ def test_update_lead_returns_404_when_missing(
     assert response.json() == {
         "detail": "Lead not found",
     }
+def test_delete_lead(
+    authenticated_client: TestClient,
+) -> None:
+    company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Lead Delete Company"},
+    ).json()
+
+    lead = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Temporary Lead",
+            "company_id": company["id"],
+        },
+    ).json()
+
+    delete_response = authenticated_client.delete(
+        f"/api/v1/leads/{lead['id']}"
+    )
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+
+    get_response = authenticated_client.get(
+        f"/api/v1/leads/{lead['id']}"
+    )
+
+    assert get_response.status_code == 404
+
+
+def test_delete_missing_lead_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.delete(
+        "/api/v1/leads/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Lead not found",
+    }

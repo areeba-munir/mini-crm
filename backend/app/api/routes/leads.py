@@ -19,6 +19,7 @@ from app.crud.contact import (
 )
 from app.crud.lead import (
     create_lead as create_lead_record,
+    delete_lead as delete_lead_record,
     get_lead as get_lead_record,
     list_leads as list_lead_records,
     update_lead as update_lead_record,
@@ -174,3 +175,20 @@ def update_lead(
         lead,
         lead_data,
     )
+@router.delete(
+    "/{lead_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_lead(
+    lead_id: Annotated[int, Path(ge=1)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    lead = get_lead_record(db, lead_id)
+
+    if lead is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead not found",
+        )
+
+    delete_lead_record(db, lead)

@@ -66,3 +66,14 @@ def update_lead(
 
     db.refresh(lead)
     return lead
+def delete_lead(
+    db: Session,
+    lead: Lead,
+) -> None:
+    db.delete(lead)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
