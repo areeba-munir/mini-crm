@@ -261,3 +261,196 @@ def test_get_missing_lead_returns_404(
     assert response.json() == {
         "detail": "Lead not found",
     }
+
+def test_update_lead_fields(
+    authenticated_client: TestClient,
+) -> None:
+    company_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Lead Update Company"},
+    )
+    company_id = company_response.json()["id"]
+
+    create_response = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Original Lead",
+            "company_id": company_id,
+        },
+    )
+    lead_id = create_response.json()["id"]
+
+    response = authenticated_client.patch(
+        f"/api/v1/leads/{lead_id}",
+        json={
+            "title": "Updated Lead",
+            "stage": "Qualified",
+            "description": "Updated description",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Updated Lead"
+    assert response.json()["stage"] == "Qualified"
+    assert (
+        response.json()["description"]
+        == "Updated description"
+    )
+
+
+def test_update_lead_can_change_company_when_contact_unlinked(
+    authenticated_client: TestClient,
+) -> None:
+    first_company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Original Lead Company"},
+    ).json()
+
+    second_company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "New Lead Company"},
+    ).json()
+
+    contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "company_id": first_company["id"],
+        },
+    ).json()
+
+    lead = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Movable Lead",
+            "company_id": first_company["id"],
+            "contact_id": contact["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/leads/{lead['id']}",
+        json={
+            "company_id": second_company["id"],
+            "contact_id": None,
+        },
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.json()["company_id"]
+        == second_company["id"]
+    )
+    assert response.json()["contact_id"] is None
+
+
+def test_update_lead_rejects_missing_company(
+    authenticated_client: TestClient,
+) -> None:
+    company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Valid Lead Company"},
+    ).json()
+
+    lead = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Lead Company Validation",
+            "company_id": company["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/leads/{lead['id']}",
+        json={"company_id": 999999},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Company not found",
+    }
+
+
+def test_update_lead_rejects_missing_contact(
+    authenticated_client: TestClient,
+) -> None:
+    company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Contact Validation Company"},
+    ).json()
+
+    lead = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Lead Contact Validation",
+            "company_id": company["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/leads/{lead['id']}",
+        json={"contact_id": 999999},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Contact not found",
+    }
+
+
+def test_update_lead_rejects_contact_from_other_company(
+    authenticated_client: TestClient,
+) -> None:
+    first_company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Lead Company One"},
+    ).json()
+
+    second_company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Lead Company Two"},
+    ).json()
+
+    contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "company_id": first_company["id"],
+        },
+    ).json()
+
+    lead = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Relationship Update Lead",
+            "company_id": first_company["id"],
+            "contact_id": contact["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/leads/{lead['id']}",
+        json={"company_id": second_company["id"]},
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": (
+            "Contact must belong to "
+            "the lead company"
+        ),
+    }
+
+
+def test_update_lead_returns_404_when_missing(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.patch(
+        "/api/v1/leads/999999",
+        json={"stage": "Contacted"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Lead not found",
+    }

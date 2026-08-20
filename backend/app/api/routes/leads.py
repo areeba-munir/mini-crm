@@ -21,10 +21,11 @@ from app.crud.lead import (
     create_lead as create_lead_record,
     get_lead as get_lead_record,
     list_leads as list_lead_records,
+    update_lead as update_lead_record,
 )
 from app.db.session import get_db
 from app.models.lead import Lead
-from app.schemas.lead import LeadCreate, LeadRead
+from app.schemas.lead import LeadCreate, LeadRead, LeadUpdate
 
 
 router = APIRouter(
@@ -108,5 +109,68 @@ def create_lead(
 
     return create_lead_record(
         db,
+        lead_data,
+    )
+@router.patch(
+    "/{lead_id}",
+    response_model=LeadRead,
+)
+def update_lead(
+    lead_id: Annotated[int, Path(ge=1)],
+    lead_data: LeadUpdate,
+    db: Annotated[Session, Depends(get_db)],
+) -> Lead:
+    lead = get_lead_record(db, lead_id)
+
+    if lead is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead not found",
+        )
+
+    company_id = (
+        lead_data.company_id
+        if "company_id" in lead_data.model_fields_set
+        else lead.company_id
+    )
+
+    if get_company_record(db, company_id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
+    contact_id = (
+        lead_data.contact_id
+        if "contact_id" in lead_data.model_fields_set
+        else lead.contact_id
+    )
+
+    if contact_id is not None:
+        contact = get_contact_record(
+            db,
+            contact_id,
+        )
+
+        if contact is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Contact not found",
+            )
+
+        if contact.company_id != company_id:
+            raise HTTPException(
+                status_code=(
+                    status.HTTP_422_UNPROCESSABLE_CONTENT
+                ),
+                detail=(
+                    "Contact must belong to "
+                    "the lead company"
+                ),
+            )
+
+    return update_lead_record(
+        db,
+        lead,
         lead_data,
     )

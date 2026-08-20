@@ -4,7 +4,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.lead import Lead
-from app.schemas.lead import LeadCreate
+from app.schemas.lead import (
+    LeadCreate,
+    LeadUpdate,
+)
 
 
 def create_lead(
@@ -41,3 +44,25 @@ def get_lead(
     lead_id: int,
 ) -> Lead | None:
     return db.get(Lead, lead_id)
+
+
+def update_lead(
+    db: Session,
+    lead: Lead,
+    lead_data: LeadUpdate,
+) -> Lead:
+    update_data = lead_data.model_dump(
+        exclude_unset=True
+    )
+
+    for field, value in update_data.items():
+        setattr(lead, field, value)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(lead)
+    return lead
