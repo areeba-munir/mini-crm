@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
 
 
-def test_create_company(client: TestClient) -> None:
-    response = client.post(
+def test_create_company( authenticated_client: TestClient) -> None:
+    response =  authenticated_client.post(
         "/api/v1/companies",
         json={
             "name": "Automated Test Company",
@@ -20,17 +20,17 @@ def test_create_company(client: TestClient) -> None:
     assert response_data["created_at"] is not None
     assert response_data["updated_at"] is not None
 
-def test_list_companies(client: TestClient) -> None:
-    client.post(
+def test_list_companies(authenticated_client: TestClient) -> None:
+    authenticated_client.post(
         "/api/v1/companies",
         json={"name": "Beta Company"},
     )
-    client.post(
+    authenticated_client.post(
         "/api/v1/companies",
         json={"name": "Alpha Company"},
     )
 
-    response = client.get("/api/v1/companies")
+    response = authenticated_client.get("/api/v1/companies")
 
     assert response.status_code == 200
 
@@ -43,14 +43,14 @@ def test_list_companies(client: TestClient) -> None:
         "Alpha Company",
         "Beta Company",
     ]
-def test_get_company(client: TestClient) -> None:
-    create_response = client.post(
+def test_get_company(authenticated_client: TestClient) -> None:
+    create_response = authenticated_client.post(
         "/api/v1/companies",
         json={"name": "Detail Test Company"},
     )
     company_id = create_response.json()["id"]
 
-    response = client.get(
+    response = authenticated_client.get(
         f"/api/v1/companies/{company_id}"
     )
 
@@ -60,17 +60,17 @@ def test_get_company(client: TestClient) -> None:
 
 
 def test_get_missing_company_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.get("/api/v1/companies/999999")
+    response = authenticated_client.get("/api/v1/companies/999999")
 
     assert response.status_code == 404
     assert response.json() == {
         "detail": "Company not found",
     }
 
-def test_update_company(client: TestClient) -> None:
-    create_response = client.post(
+def test_update_company(authenticated_client: TestClient) -> None:
+    create_response = authenticated_client.post(
         "/api/v1/companies",
         json={
             "name": "Update Test Company",
@@ -79,7 +79,7 @@ def test_update_company(client: TestClient) -> None:
     )
     company_id = create_response.json()["id"]
 
-    response = client.patch(
+    response = authenticated_client.patch(
         f"/api/v1/companies/{company_id}",
         json={"industry": "New Industry"},
     )
@@ -88,7 +88,7 @@ def test_update_company(client: TestClient) -> None:
     assert response.json()["name"] == "Update Test Company"
     assert response.json()["industry"] == "New Industry"
 
-    get_response = client.get(
+    get_response = authenticated_client.get(
         f"/api/v1/companies/{company_id}"
     )
 
@@ -96,41 +96,41 @@ def test_update_company(client: TestClient) -> None:
 
 
 def test_update_company_rejects_blank_name(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    create_response = client.post(
+    create_response = authenticated_client.post(
         "/api/v1/companies",
         json={"name": "Keep This Name"},
     )
     company_id = create_response.json()["id"]
 
-    response = client.patch(
+    response = authenticated_client.patch(
         f"/api/v1/companies/{company_id}",
         json={"name": "   "},
     )
 
     assert response.status_code == 422
 
-    get_response = client.get(
+    get_response = authenticated_client.get(
         f"/api/v1/companies/{company_id}"
     )
 
     assert get_response.json()["name"] == "Keep This Name"
-def test_delete_company(client: TestClient) -> None:
-    create_response = client.post(
+def test_delete_company(authenticated_client: TestClient) -> None:
+    create_response = authenticated_client.post(
         "/api/v1/companies",
         json={"name": "Delete Test Company"},
     )
     company_id = create_response.json()["id"]
 
-    delete_response = client.delete(
+    delete_response = authenticated_client.delete(
         f"/api/v1/companies/{company_id}"
     )
 
     assert delete_response.status_code == 204
     assert delete_response.content == b""
 
-    get_response = client.get(
+    get_response = authenticated_client.get(
         f"/api/v1/companies/{company_id}"
     )
 
@@ -138,13 +138,23 @@ def test_delete_company(client: TestClient) -> None:
 
 
 def test_delete_missing_company_returns_404(
-    client: TestClient,
+    authenticated_client: TestClient,
 ) -> None:
-    response = client.delete(
+    response = authenticated_client.delete(
         "/api/v1/companies/999999"
     )
 
     assert response.status_code == 404
     assert response.json() == {
         "detail": "Company not found",
+    }
+
+def test_company_endpoints_require_authentication(
+    client: TestClient,
+) -> None:
+    response = client.get("/api/v1/companies")
+
+    assert response.status_code == 401
+    assert response.json() == {
+        "detail": "Not authenticated",
     }

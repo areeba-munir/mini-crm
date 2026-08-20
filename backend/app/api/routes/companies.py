@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from typing import Annotated
 
+from app.api.dependencies import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,9 @@ from app.schemas.company import CompanyCreate, CompanyRead, CompanyUpdate
 router = APIRouter(
     prefix="/companies",
     tags=["Companies"],
+    dependencies=[
+        Depends(get_current_user),
+    ],
 )
 
 

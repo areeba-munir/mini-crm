@@ -1,9 +1,13 @@
-from app.api.routes import companies
+from app.api.routes import auth, companies
 from fastapi import FastAPI
 
 app = FastAPI(
     title="Mini CRM API",
     version="0.1.0",
+)
+app.include_router(
+    auth.router,
+    prefix="/api/v1",
 )
 app.include_router(
     companies.router,
