@@ -84,6 +84,7 @@ def test_contact_endpoints_require_authentication(
 
     assert response.status_code == 401
 
+
 def test_list_contacts_returns_empty_list(
     authenticated_client: TestClient,
 ) -> None:
@@ -93,6 +94,7 @@ def test_list_contacts_returns_empty_list(
 
     assert response.status_code == 200
     assert response.json() == []
+
 
 def test_list_contacts_returns_saved_contacts_in_order(
     authenticated_client: TestClient,
@@ -126,6 +128,7 @@ def test_list_contacts_returns_saved_contacts_in_order(
         "Areeba",
         "Zara",
     ]
+
 
 def test_get_contact(
     authenticated_client: TestClient,
@@ -168,6 +171,7 @@ def test_get_missing_contact_returns_404(
     assert response.json() == {
         "detail": "Contact not found",
     }
+
 
 def test_update_contact(
     authenticated_client: TestClient,
@@ -277,4 +281,43 @@ def test_update_contact_rejects_missing_company(
     assert response.status_code == 404
     assert response.json() == {
         "detail": "Company not found",
+    }
+
+
+def test_delete_contact(
+    authenticated_client: TestClient,
+) -> None:
+    create_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Temporary",
+            "last_name": "Contact",
+        },
+    )
+    contact_id = create_response.json()["id"]
+
+    delete_response = authenticated_client.delete(
+        f"/api/v1/contacts/{contact_id}"
+    )
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+
+    get_response = authenticated_client.get(
+        f"/api/v1/contacts/{contact_id}"
+    )
+
+    assert get_response.status_code == 404
+
+
+def test_delete_missing_contact_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.delete(
+        "/api/v1/contacts/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Contact not found",
     }

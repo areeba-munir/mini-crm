@@ -135,3 +135,27 @@ def update_contact(
         contact,
         contact_data,
     )
+from app.crud.contact import (
+    create_contact as create_contact_record,
+    delete_contact as delete_contact_record,
+    get_contact as get_contact_record,
+    list_contacts as list_contact_records,
+    update_contact as update_contact_record,
+)
+@router.delete(
+    "/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_contact(
+    contact_id: Annotated[int, Path(ge=1)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    contact = get_contact_record(db, contact_id)
+
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+
+    delete_contact_record(db, contact)

@@ -66,3 +66,15 @@ def update_contact(
 
     db.refresh(contact)
     return contact
+
+def delete_contact(
+    db: Session,
+    contact: Contact,
+) -> None:
+    db.delete(contact)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
