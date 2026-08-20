@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
-
+from app.models.lead import Lead
 from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -57,4 +57,8 @@ class Company(Base):
         "Contact",
         back_populates="company",
         passive_deletes=True,
+    )
+    leads: Mapped[list["Lead"]] = relationship(
+    back_populates="company",
+    passive_deletes=True,
     )

@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
+from app.models.lead import Lead
 
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -62,4 +63,8 @@ class Contact(Base):
     company: Mapped["Company | None"] = relationship(
         "Company",
         back_populates="contacts",
+    )
+    leads: Mapped[list["Lead"]] = relationship(
+    back_populates="contact",
+    passive_deletes=True,
     )
