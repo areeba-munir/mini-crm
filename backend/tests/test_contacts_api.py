@@ -168,3 +168,113 @@ def test_get_missing_contact_returns_404(
     assert response.json() == {
         "detail": "Contact not found",
     }
+
+def test_update_contact(
+    authenticated_client: TestClient,
+) -> None:
+    create_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "last_name": "Old",
+        },
+    )
+    contact_id = create_response.json()["id"]
+
+    response = authenticated_client.patch(
+        f"/api/v1/contacts/{contact_id}",
+        json={
+            "last_name": "Ahmed",
+            "job_title": "Developer",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["first_name"] == "Areeb"
+    assert response.json()["last_name"] == "Ahmed"
+    assert response.json()["job_title"] == "Developer"
+
+
+def test_update_contact_can_link_company(
+    authenticated_client: TestClient,
+) -> None:
+    company_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={
+            "name": "Contact Update Company",
+        },
+    )
+    company_id = company_response.json()["id"]
+
+    contact_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+        },
+    )
+    contact_id = contact_response.json()["id"]
+
+    response = authenticated_client.patch(
+        f"/api/v1/contacts/{contact_id}",
+        json={
+            "company_id": company_id,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["company_id"] == company_id
+
+
+def test_update_contact_can_unlink_company(
+    authenticated_client: TestClient,
+) -> None:
+    company_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={
+            "name": "Contact Unlink Company",
+        },
+    )
+    company_id = company_response.json()["id"]
+
+    contact_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "company_id": company_id,
+        },
+    )
+    contact_id = contact_response.json()["id"]
+
+    response = authenticated_client.patch(
+        f"/api/v1/contacts/{contact_id}",
+        json={
+            "company_id": None,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["company_id"] is None
+
+
+def test_update_contact_rejects_missing_company(
+    authenticated_client: TestClient,
+) -> None:
+    contact_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+        },
+    )
+    contact_id = contact_response.json()["id"]
+
+    response = authenticated_client.patch(
+        f"/api/v1/contacts/{contact_id}",
+        json={
+            "company_id": 999999,
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Company not found",
+    }

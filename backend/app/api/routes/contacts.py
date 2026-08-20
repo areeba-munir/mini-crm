@@ -18,12 +18,14 @@ from app.crud.contact import (
     create_contact as create_contact_record,
     get_contact as get_contact_record,
     list_contacts as list_contact_records,
+    update_contact as update_contact_record,
 )
 from app.db.session import get_db
 from app.models.contact import Contact
 from app.schemas.contact import (
     ContactCreate,
     ContactRead,
+    ContactUpdate,
 )
 
 
@@ -89,5 +91,47 @@ def create_contact(
 
     return create_contact_record(
         db,
+        contact_data,
+    )
+
+
+@router.patch(
+    "/{contact_id}",
+    response_model=ContactRead,
+)
+def update_contact(
+    contact_id: Annotated[int, Path(ge=1)],
+    contact_data: ContactUpdate,
+    db: Annotated[Session, Depends(get_db)],
+) -> Contact:
+    contact = get_contact_record(db, contact_id)
+
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found",
+        )
+
+    company_id_was_provided = (
+        "company_id" in contact_data.model_fields_set
+    )
+
+    if (
+        company_id_was_provided
+        and contact_data.company_id is not None
+        and get_company_record(
+            db,
+            contact_data.company_id,
+        )
+        is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Company not found",
+        )
+
+    return update_contact_record(
+        db,
+        contact,
         contact_data,
     )

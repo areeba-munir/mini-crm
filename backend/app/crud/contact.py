@@ -4,7 +4,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.contact import Contact
-from app.schemas.contact import ContactCreate
+from app.schemas.contact import (
+    ContactCreate,
+    ContactUpdate,
+)
 
 
 def create_contact(
@@ -25,7 +28,9 @@ def create_contact(
     return contact
 
 
-def list_contacts(db: Session) -> Sequence[Contact]:
+def list_contacts(
+    db: Session,
+) -> Sequence[Contact]:
     statement = select(Contact).order_by(
         Contact.first_name,
         Contact.id,
@@ -33,8 +38,31 @@ def list_contacts(db: Session) -> Sequence[Contact]:
 
     return db.scalars(statement).all()
 
+
 def get_contact(
     db: Session,
     contact_id: int,
 ) -> Contact | None:
     return db.get(Contact, contact_id)
+
+
+def update_contact(
+    db: Session,
+    contact: Contact,
+    contact_data: ContactUpdate,
+) -> Contact:
+    update_data = contact_data.model_dump(
+        exclude_unset=True
+    )
+
+    for field, value in update_data.items():
+        setattr(contact, field, value)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(contact)
+    return contact
