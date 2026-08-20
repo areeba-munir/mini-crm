@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.lead import Lead
+from app.models.lead import Lead, LeadStage
 from app.schemas.lead import (
     LeadCreate,
     LeadUpdate,
@@ -30,8 +30,16 @@ def create_lead(
 
 def list_leads(
     db: Session,
+    stage: LeadStage | None = None,
 ) -> Sequence[Lead]:
-    statement = select(Lead).order_by(
+    statement = select(Lead)
+
+    if stage is not None:
+        statement = statement.where(
+            Lead.stage == stage
+        )
+
+    statement = statement.order_by(
         Lead.created_at.desc(),
         Lead.id.desc(),
     )

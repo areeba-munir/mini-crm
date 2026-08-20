@@ -5,6 +5,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Path,
+    Query,
     status,
 )
 
@@ -25,7 +26,7 @@ from app.crud.lead import (
     update_lead as update_lead_record,
 )
 from app.db.session import get_db
-from app.models.lead import Lead
+from app.models.lead import Lead, LeadStage
 from app.schemas.lead import LeadCreate, LeadRead, LeadUpdate
 
 
@@ -42,8 +43,15 @@ router = APIRouter(
 )
 def get_leads(
     db: Annotated[Session, Depends(get_db)],
+    stage: Annotated[
+        LeadStage | None,
+        Query(),
+    ] = None,
 ) -> Sequence[Lead]:
-    return list_lead_records(db)
+    return list_lead_records(
+        db,
+        stage=stage,
+    )
 
 
 @router.get(

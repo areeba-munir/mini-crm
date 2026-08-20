@@ -495,3 +495,46 @@ def test_delete_missing_lead_returns_404(
     assert response.json() == {
         "detail": "Lead not found",
     }
+
+def test_list_leads_filters_by_stage(
+    authenticated_client: TestClient,
+) -> None:
+    company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Pipeline Filter Company"},
+    ).json()
+
+    for title, stage in [
+        ("New Lead", "New"),
+        ("Qualified Lead", "Qualified"),
+        ("Won Lead", "Won"),
+    ]:
+        authenticated_client.post(
+            "/api/v1/leads",
+            json={
+                "title": title,
+                "company_id": company["id"],
+                "stage": stage,
+            },
+        )
+
+    response = authenticated_client.get(
+        "/api/v1/leads",
+        params={"stage": "Qualified"},
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["title"] == "Qualified Lead"
+    assert response.json()[0]["stage"] == "Qualified"
+
+
+def test_list_leads_rejects_invalid_stage_filter(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/leads",
+        params={"stage": "Invalid"},
+    )
+
+    assert response.status_code == 422
