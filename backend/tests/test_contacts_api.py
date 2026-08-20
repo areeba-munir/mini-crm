@@ -83,3 +83,46 @@ def test_contact_endpoints_require_authentication(
     )
 
     assert response.status_code == 401
+
+def test_list_contacts_returns_empty_list(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/contacts"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+def test_list_contacts_returns_saved_contacts_in_order(
+    authenticated_client: TestClient,
+) -> None:
+    authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Zara",
+        },
+    )
+    authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeba",
+        },
+    )
+
+    response = authenticated_client.get(
+        "/api/v1/contacts"
+    )
+
+    assert response.status_code == 200
+
+    response_data = response.json()
+
+    assert len(response_data) == 2
+    assert [
+        contact["first_name"]
+        for contact in response_data
+    ] == [
+        "Areeba",
+        "Zara",
+    ]

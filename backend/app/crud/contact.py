@@ -1,3 +1,6 @@
+from collections.abc import Sequence
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.contact import Contact
@@ -8,9 +11,7 @@ def create_contact(
     db: Session,
     contact_data: ContactCreate,
 ) -> Contact:
-    contact = Contact(
-        **contact_data.model_dump()
-    )
+    contact = Contact(**contact_data.model_dump())
 
     db.add(contact)
 
@@ -22,3 +23,12 @@ def create_contact(
 
     db.refresh(contact)
     return contact
+
+
+def list_contacts(db: Session) -> Sequence[Contact]:
+    statement = select(Contact).order_by(
+        Contact.first_name,
+        Contact.id,
+    )
+
+    return db.scalars(statement).all()
