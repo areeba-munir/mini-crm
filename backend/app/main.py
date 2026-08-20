@@ -1,4 +1,4 @@
-from app.api.routes import auth, companies
+from app.api.routes import auth, companies, contacts
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -11,6 +11,10 @@ app.include_router(
 )
 app.include_router(
     companies.router,
+    prefix="/api/v1",
+)
+app.include_router(
+    contacts.router,
     prefix="/api/v1",
 )
 
