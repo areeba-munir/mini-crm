@@ -1,60 +1,65 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 
 if TYPE_CHECKING:
-    from app.models.contact import Contact
+    from app.models.company import Company
 
 
-class Company(Base):
-    __tablename__ = "companies"
+class Contact(Base):
+    __tablename__ = "contacts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    name: Mapped[str] = mapped_column(
-        String(200),
+    first_name: Mapped[str] = mapped_column(
+        String(100),
         nullable=False,
         index=True,
     )
 
-    industry: Mapped[str | None] = mapped_column(
+    last_name: Mapped[str | None] = mapped_column(
         String(100)
     )
 
-    website: Mapped[str | None] = mapped_column(
-        String(500)
-    )
-
     email: Mapped[str | None] = mapped_column(
-        String(255)
+        String(320)
     )
 
     phone: Mapped[str | None] = mapped_column(
         String(50)
     )
 
-    address: Mapped[str | None] = mapped_column(
-        Text
+    job_title: Mapped[str | None] = mapped_column(
+        String(150)
+    )
+
+    company_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "companies.id",
+            ondelete="SET NULL",
+        ),
+        index=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        nullable=False,
         server_default=func.now(),
     )
 
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
+        nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
     )
 
-    contacts: Mapped[list["Contact"]] = relationship(
-        "Contact",
-        back_populates="company",
-        passive_deletes=True,
+    company: Mapped["Company | None"] = relationship(
+        "Company",
+        back_populates="contacts",
     )
