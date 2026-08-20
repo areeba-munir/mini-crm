@@ -32,3 +32,9 @@ def list_contacts(db: Session) -> Sequence[Contact]:
     )
 
     return db.scalars(statement).all()
+
+def get_contact(
+    db: Session,
+    contact_id: int,
+) -> Contact | None:
+    return db.get(Contact, contact_id)

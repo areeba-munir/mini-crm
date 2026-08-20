@@ -126,3 +126,45 @@ def test_list_contacts_returns_saved_contacts_in_order(
         "Areeba",
         "Zara",
     ]
+
+def test_get_contact(
+    authenticated_client: TestClient,
+) -> None:
+    create_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Areeb",
+            "last_name": "Ahmed",
+            "email": "areeb@example.com",
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    contact_id = create_response.json()["id"]
+
+    response = authenticated_client.get(
+        f"/api/v1/contacts/{contact_id}"
+    )
+
+    assert response.status_code == 200
+
+    response_data = response.json()
+
+    assert response_data["id"] == contact_id
+    assert response_data["first_name"] == "Areeb"
+    assert response_data["last_name"] == "Ahmed"
+    assert response_data["email"] == "areeb@example.com"
+
+
+def test_get_missing_contact_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/contacts/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Contact not found",
+    }
