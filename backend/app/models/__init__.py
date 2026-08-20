@@ -1,6 +1,11 @@
 from app.models.company import Company
 from app.models.contact import Contact
 from app.models.lead import Lead, LeadStage
+from app.models.task import (
+    Task,
+    TaskPriority,
+    TaskStatus,
+)
 from app.models.user import User
 
 __all__ = [
@@ -8,5 +13,8 @@ __all__ = [
     "Contact",
     "Lead",
     "LeadStage",
+    "Task",
+    "TaskPriority",
+    "TaskStatus",
     "User",
 ]

@@ -1,15 +1,31 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, String, func, true
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    String,
+    func,
+    true,
+)
+from sqlalchemy.orm import (
+    Mapped,
+    mapped_column,
+    relationship,
+)
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.task import Task
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
 
     full_name: Mapped[str] = mapped_column(
         String(200),
@@ -45,4 +61,16 @@ class User(Base):
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
+    )
+
+    assigned_tasks: Mapped[list["Task"]] = relationship(
+        back_populates="assigned_to",
+        foreign_keys="Task.assigned_to_id",
+        passive_deletes=True,
+    )
+
+    created_tasks: Mapped[list["Task"]] = relationship(
+        back_populates="created_by",
+        foreign_keys="Task.created_by_id",
+        passive_deletes=True,
     )

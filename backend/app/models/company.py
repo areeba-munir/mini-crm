@@ -9,6 +9,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.contact import Contact
+    from app.models.task import Task
 
 
 class Company(Base):
@@ -61,4 +62,8 @@ class Company(Base):
     leads: Mapped[list["Lead"]] = relationship(
     back_populates="company",
     passive_deletes=True,
+    )
+    tasks: Mapped[list["Task"]] = relationship(
+        back_populates="company",
+        passive_deletes=True,
     )
