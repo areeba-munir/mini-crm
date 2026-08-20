@@ -168,3 +168,96 @@ def test_lead_endpoints_require_authentication(
     )
 
     assert response.status_code == 401
+
+def test_list_leads_returns_empty_list(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/leads"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_leads_returns_newest_first(
+    authenticated_client: TestClient,
+) -> None:
+    company_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={
+            "name": "Lead List Company",
+        },
+    )
+    company_id = company_response.json()["id"]
+
+    authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "First Lead",
+            "company_id": company_id,
+        },
+    )
+    authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Second Lead",
+            "company_id": company_id,
+        },
+    )
+
+    response = authenticated_client.get(
+        "/api/v1/leads"
+    )
+
+    assert response.status_code == 200
+    assert [
+        lead["title"] for lead in response.json()
+    ] == [
+        "Second Lead",
+        "First Lead",
+    ]
+
+
+def test_get_lead(
+    authenticated_client: TestClient,
+) -> None:
+    company_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={
+            "name": "Lead Detail Company",
+        },
+    )
+    company_id = company_response.json()["id"]
+
+    create_response = authenticated_client.post(
+        "/api/v1/leads",
+        json={
+            "title": "Lead Detail Test",
+            "company_id": company_id,
+            "stage": "Qualified",
+        },
+    )
+    lead_id = create_response.json()["id"]
+
+    response = authenticated_client.get(
+        f"/api/v1/leads/{lead_id}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["id"] == lead_id
+    assert response.json()["title"] == "Lead Detail Test"
+    assert response.json()["stage"] == "Qualified"
+
+
+def test_get_missing_lead_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/leads/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Lead not found",
+    }
