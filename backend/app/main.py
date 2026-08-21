@@ -1,4 +1,4 @@
-from app.api.routes import auth, companies, contacts, leads, tasks
+from app.api.routes import auth, companies, contacts, leads, tasks, meetings
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -23,6 +23,10 @@ app.include_router(
 )
 app.include_router(
     tasks.router,
+    prefix="/api/v1",
+)
+app.include_router(
+    meetings.router,
     prefix="/api/v1",
 )
 

@@ -206,3 +206,16 @@ class Meeting(Base):
             passive_deletes=True,
         )
     )
+    @property
+    def user_participant_ids(self) -> list[int]:
+        return sorted(
+            user.id
+            for user in self.user_participants
+        )
+
+    @property
+    def contact_participant_ids(self) -> list[int]:
+        return sorted(
+            contact.id
+            for contact in self.contact_participants
+        )
