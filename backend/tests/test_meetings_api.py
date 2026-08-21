@@ -403,3 +403,218 @@ def test_list_meetings_rejects_invalid_date_range(
             "than starts_from"
         ),
     }
+
+def test_update_meeting_fields(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Original Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/meetings/{meeting['id']}",
+        json={
+            "title": "Updated Meeting",
+            "status": "Completed",
+            "location": "Conference Room",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["title"] == "Updated Meeting"
+    assert response.json()["status"] == "Completed"
+    assert (
+        response.json()["location"]
+        == "Conference Room"
+    )
+
+
+def test_update_meeting_validates_combined_time_range(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Time Validation Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/meetings/{meeting['id']}",
+        json={
+            "starts_at": "2026-08-25T12:00:00Z",
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "Meeting end must be after start",
+    }
+
+
+def test_update_meeting_replaces_participants(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    first_contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={"first_name": "First Participant"},
+    ).json()
+
+    second_contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={"first_name": "Second Participant"},
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Participant Update Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+            "user_participant_ids": [
+                current_user["id"]
+            ],
+            "contact_participant_ids": [
+                first_contact["id"]
+            ],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/meetings/{meeting['id']}",
+        json={
+            "user_participant_ids": [],
+            "contact_participant_ids": [
+                second_contact["id"]
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user_participant_ids"] == []
+    assert response.json()[
+        "contact_participant_ids"
+    ] == [second_contact["id"]]
+
+
+def test_update_meeting_rejects_missing_organizer(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Organizer Validation Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/meetings/{meeting['id']}",
+        json={"organizer_id": 999999},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Organizer not found",
+    }
+
+
+def test_update_meeting_rejects_missing_company(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Company Validation Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/meetings/{meeting['id']}",
+        json={"company_id": 999999},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Company not found",
+    }
+
+
+def test_update_meeting_rejects_missing_user_participant(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Participant Validation Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+        },
+    ).json()
+
+    response = authenticated_client.patch(
+        f"/api/v1/meetings/{meeting['id']}",
+        json={"user_participant_ids": [999999]},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": (
+            "One or more user participants "
+            "were not found"
+        ),
+    }
+
+
+def test_update_meeting_returns_404_when_missing(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.patch(
+        "/api/v1/meetings/999999",
+        json={"status": "Cancelled"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Meeting not found",
+    }

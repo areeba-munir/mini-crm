@@ -10,7 +10,7 @@ from sqlalchemy.orm import (
 from app.models.contact import Contact
 from app.models.meeting import Meeting, MeetingStatus
 from app.models.user import User
-from app.schemas.meeting import MeetingCreate
+from app.schemas.meeting import MeetingCreate, MeetingUpdate
 
 
 def create_meeting(
@@ -108,3 +108,40 @@ def get_meeting(
     )
 
     return db.scalar(statement)
+
+def update_meeting(
+    db: Session,
+    meeting: Meeting,
+    meeting_data: MeetingUpdate,
+    user_participants: Sequence[User] | None,
+    contact_participants: Sequence[Contact] | None,
+) -> Meeting:
+    update_values = meeting_data.model_dump(
+        exclude_unset=True,
+        exclude={
+            "user_participant_ids",
+            "contact_participant_ids",
+        },
+    )
+
+    for field, value in update_values.items():
+        setattr(meeting, field, value)
+
+    if user_participants is not None:
+        meeting.user_participants = list(
+            user_participants
+        )
+
+    if contact_participants is not None:
+        meeting.contact_participants = list(
+            contact_participants
+        )
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(meeting)
+    return meeting
