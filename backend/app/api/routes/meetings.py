@@ -4,10 +4,15 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
+    Path,
+    Query,
     status,
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from collections.abc import Sequence
+
+from pydantic import AwareDatetime
 
 from app.api.dependencies import get_current_user
 from app.crud.company import (
@@ -15,10 +20,12 @@ from app.crud.company import (
 )
 from app.crud.meeting import (
     create_meeting as create_meeting_record,
+    get_meeting as get_meeting_record,
+    list_meetings as list_meeting_records,
 )
 from app.db.session import get_db
 from app.models.contact import Contact
-from app.models.meeting import Meeting
+from app.models.meeting import Meeting, MeetingStatus
 from app.models.user import User
 from app.schemas.meeting import (
     MeetingCreate,
@@ -33,7 +40,76 @@ router = APIRouter(
         Depends(get_current_user),
     ],
 )
+@router.get(
+    "",
+    response_model=list[MeetingRead],
+)
+def get_meetings(
+    db: Annotated[Session, Depends(get_db)],
+    meeting_status: MeetingStatus | None = Query(
+        default=None,
+        alias="status",
+    ),
+    organizer_id: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+    company_id: int | None = Query(
+        default=None,
+        ge=1,
+    ),
+    starts_from: AwareDatetime | None = Query(
+        default=None,
+    ),
+    starts_to: AwareDatetime | None = Query(
+        default=None,
+    ),
+) -> Sequence[Meeting]:
+    if (
+        starts_from is not None
+        and starts_to is not None
+        and starts_to < starts_from
+    ):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_422_UNPROCESSABLE_CONTENT
+            ),
+            detail=(
+                "starts_to cannot be earlier "
+                "than starts_from"
+            ),
+        )
 
+    return list_meeting_records(
+        db,
+        status=meeting_status,
+        organizer_id=organizer_id,
+        company_id=company_id,
+        starts_from=starts_from,
+        starts_to=starts_to,
+    )
+
+
+@router.get(
+    "/{meeting_id}",
+    response_model=MeetingRead,
+)
+def get_meeting(
+    db: Annotated[Session, Depends(get_db)],
+    meeting_id: int = Path(ge=1),
+) -> Meeting:
+    meeting = get_meeting_record(
+        db,
+        meeting_id,
+    )
+
+    if meeting is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found",
+        )
+
+    return meeting
 
 @router.post(
     "",

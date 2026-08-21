@@ -210,3 +210,196 @@ def test_meeting_endpoints_require_authentication(
     )
 
     assert response.status_code == 401
+
+def test_list_meetings_returns_empty_list(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/meetings"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_meetings_filters_status_and_company(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    first_company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "First Meeting Company"},
+    ).json()
+
+    second_company = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": "Second Meeting Company"},
+    ).json()
+
+    for title, meeting_status, company_id in [
+        (
+            "Scheduled First",
+            "Scheduled",
+            first_company["id"],
+        ),
+        (
+            "Completed First",
+            "Completed",
+            first_company["id"],
+        ),
+        (
+            "Completed Second",
+            "Completed",
+            second_company["id"],
+        ),
+    ]:
+        authenticated_client.post(
+            "/api/v1/meetings",
+            json={
+                "title": title,
+                "starts_at": (
+                    "2026-08-25T10:00:00Z"
+                ),
+                "ends_at": (
+                    "2026-08-25T11:00:00Z"
+                ),
+                "organizer_id": current_user["id"],
+                "company_id": company_id,
+                "status": meeting_status,
+            },
+        )
+
+    response = authenticated_client.get(
+        "/api/v1/meetings",
+        params={
+            "status": "Completed",
+            "company_id": first_company["id"],
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert (
+        response.json()[0]["title"]
+        == "Completed First"
+    )
+
+
+def test_list_meetings_filters_date_range(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    for day in [25, 26, 27]:
+        authenticated_client.post(
+            "/api/v1/meetings",
+            json={
+                "title": f"Meeting {day}",
+                "starts_at": (
+                    f"2026-08-{day}T10:00:00Z"
+                ),
+                "ends_at": (
+                    f"2026-08-{day}T11:00:00Z"
+                ),
+                "organizer_id": current_user["id"],
+            },
+        )
+
+    response = authenticated_client.get(
+        "/api/v1/meetings",
+        params={
+            "starts_from": (
+                "2026-08-26T00:00:00Z"
+            ),
+            "starts_to": (
+                "2026-08-26T23:59:59Z"
+            ),
+        },
+    )
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["title"] == "Meeting 26"
+
+
+def test_get_meeting_includes_participants(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={"first_name": "Meeting Client"},
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Meeting Detail",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+            "user_participant_ids": [
+                current_user["id"]
+            ],
+            "contact_participant_ids": [
+                contact["id"]
+            ],
+        },
+    ).json()
+
+    response = authenticated_client.get(
+        f"/api/v1/meetings/{meeting['id']}"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user_participant_ids"] == [
+        current_user["id"]
+    ]
+    assert response.json()[
+        "contact_participant_ids"
+    ] == [contact["id"]]
+
+
+def test_get_missing_meeting_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/meetings/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Meeting not found",
+    }
+
+
+def test_list_meetings_rejects_invalid_date_range(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.get(
+        "/api/v1/meetings",
+        params={
+            "starts_from": (
+                "2026-08-27T00:00:00Z"
+            ),
+            "starts_to": (
+                "2026-08-26T00:00:00Z"
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": (
+            "starts_to cannot be earlier "
+            "than starts_from"
+        ),
+    }

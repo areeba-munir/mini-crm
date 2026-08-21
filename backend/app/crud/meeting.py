@@ -1,9 +1,14 @@
 from collections.abc import Sequence
+from datetime import datetime
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import (
+    Session,
+    selectinload,
+)
 
 from app.models.contact import Contact
-from app.models.meeting import Meeting
+from app.models.meeting import Meeting, MeetingStatus
 from app.models.user import User
 from app.schemas.meeting import MeetingCreate
 
@@ -39,3 +44,67 @@ def create_meeting(
 
     db.refresh(meeting)
     return meeting
+
+
+def list_meetings(
+    db: Session,
+    status: MeetingStatus | None = None,
+    organizer_id: int | None = None,
+    company_id: int | None = None,
+    starts_from: datetime | None = None,
+    starts_to: datetime | None = None,
+) -> Sequence[Meeting]:
+    statement = select(Meeting).options(
+        selectinload(Meeting.user_participants),
+        selectinload(Meeting.contact_participants),
+    )
+
+    if status is not None:
+        statement = statement.where(
+            Meeting.status == status
+        )
+
+    if organizer_id is not None:
+        statement = statement.where(
+            Meeting.organizer_id == organizer_id
+        )
+
+    if company_id is not None:
+        statement = statement.where(
+            Meeting.company_id == company_id
+        )
+
+    if starts_from is not None:
+        statement = statement.where(
+            Meeting.starts_at >= starts_from
+        )
+
+    if starts_to is not None:
+        statement = statement.where(
+            Meeting.starts_at <= starts_to
+        )
+
+    statement = statement.order_by(
+        Meeting.starts_at.asc(),
+        Meeting.id.asc(),
+    )
+
+    return db.scalars(statement).all()
+
+
+def get_meeting(
+    db: Session,
+    meeting_id: int,
+) -> Meeting | None:
+    statement = (
+        select(Meeting)
+        .where(Meeting.id == meeting_id)
+        .options(
+            selectinload(Meeting.user_participants),
+            selectinload(
+                Meeting.contact_participants
+            ),
+        )
+    )
+
+    return db.scalar(statement)
