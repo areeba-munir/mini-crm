@@ -18,6 +18,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.task import Task
+    from app.models.meeting import Meeting
 
 
 class User(Base):
@@ -73,4 +74,16 @@ class User(Base):
         back_populates="created_by",
         foreign_keys="Task.created_by_id",
         passive_deletes=True,
+    )
+    organized_meetings: Mapped[list["Meeting"]] = relationship(
+    back_populates="organizer",
+    foreign_keys="Meeting.organizer_id",
+    passive_deletes=True,
+    )
+    participating_meetings: Mapped[list["Meeting"]] = (
+    relationship(
+        secondary="meeting_user_participants",
+        back_populates="user_participants",
+        passive_deletes=True,
+    )
     )
