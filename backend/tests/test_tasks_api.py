@@ -440,3 +440,45 @@ def test_update_task_returns_404_when_missing(
     assert response.json() == {
         "detail": "Task not found",
     }
+
+
+def test_delete_task(
+    authenticated_client: TestClient,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    task = authenticated_client.post(
+        "/api/v1/tasks",
+        json={
+            "title": "Temporary Task",
+            "assigned_to_id": current_user["id"],
+        },
+    ).json()
+
+    delete_response = authenticated_client.delete(
+        f"/api/v1/tasks/{task['id']}"
+    )
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+
+    get_response = authenticated_client.get(
+        f"/api/v1/tasks/{task['id']}"
+    )
+
+    assert get_response.status_code == 404
+
+
+def test_delete_missing_task_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.delete(
+        "/api/v1/tasks/999999"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Task not found",
+    }

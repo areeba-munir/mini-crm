@@ -118,3 +118,14 @@ def update_task(
 
     db.refresh(task)
     return task
+def delete_task(
+    db: Session,
+    task: Task,
+) -> None:
+    db.delete(task)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise

@@ -23,6 +23,7 @@ from app.crud.lead import (
 )
 from app.crud.task import (
     create_task as create_task_record,
+    delete_task as delete_task_record,
     get_task as get_task_record,
     list_tasks as list_task_records,
     update_task as update_task_record,
@@ -282,3 +283,20 @@ def update_task(
         task,
         task_data,
     )
+@router.delete(
+    "/{task_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_task(
+    db: Annotated[Session, Depends(get_db)],
+    task_id: int = Path(ge=1),
+) -> None:
+    task = get_task_record(db, task_id)
+
+    if task is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
+        )
+
+    delete_task_record(db, task)
