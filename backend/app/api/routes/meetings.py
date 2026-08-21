@@ -20,6 +20,7 @@ from app.crud.company import (
 )
 from app.crud.meeting import (
     create_meeting as create_meeting_record,
+    delete_meeting as delete_meeting_record,
     get_meeting as get_meeting_record,
     list_meetings as list_meeting_records,
     update_meeting as update_meeting_record,
@@ -389,3 +390,23 @@ def update_meeting(
         user_participants,
         contact_participants,
     )
+@router.delete(
+    "/{meeting_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_meeting(
+    db: Annotated[Session, Depends(get_db)],
+    meeting_id: int = Path(ge=1),
+) -> None:
+    meeting = get_meeting_record(
+        db,
+        meeting_id,
+    )
+
+    if meeting is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Meeting not found",
+        )
+
+    delete_meeting_record(db, meeting)

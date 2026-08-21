@@ -1,4 +1,11 @@
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.models.meeting import (
+    meeting_contact_participants,
+    meeting_user_participants,
+)
 
 
 def test_create_minimal_meeting(
@@ -612,6 +619,82 @@ def test_update_meeting_returns_404_when_missing(
     response = authenticated_client.patch(
         "/api/v1/meetings/999999",
         json={"status": "Cancelled"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Meeting not found",
+    }
+def test_delete_meeting_removes_participant_rows(
+    authenticated_client: TestClient,
+    db_session: Session,
+) -> None:
+    current_user = authenticated_client.get(
+        "/api/v1/auth/me"
+    ).json()
+
+    contact = authenticated_client.post(
+        "/api/v1/contacts",
+        json={"first_name": "Delete Participant"},
+    ).json()
+
+    meeting = authenticated_client.post(
+        "/api/v1/meetings",
+        json={
+            "title": "Temporary Meeting",
+            "starts_at": "2026-08-25T10:00:00Z",
+            "ends_at": "2026-08-25T11:00:00Z",
+            "organizer_id": current_user["id"],
+            "user_participant_ids": [
+                current_user["id"]
+            ],
+            "contact_participant_ids": [
+                contact["id"]
+            ],
+        },
+    ).json()
+
+    delete_response = authenticated_client.delete(
+        f"/api/v1/meetings/{meeting['id']}"
+    )
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+
+    get_response = authenticated_client.get(
+        f"/api/v1/meetings/{meeting['id']}"
+    )
+
+    assert get_response.status_code == 404
+
+    user_rows = db_session.scalar(
+        select(func.count())
+        .select_from(meeting_user_participants)
+        .where(
+            meeting_user_participants.c.meeting_id
+            == meeting["id"]
+        )
+    )
+    contact_rows = db_session.scalar(
+        select(func.count())
+        .select_from(
+            meeting_contact_participants
+        )
+        .where(
+            meeting_contact_participants.c.meeting_id
+            == meeting["id"]
+        )
+    )
+
+    assert user_rows == 0
+    assert contact_rows == 0
+
+
+def test_delete_missing_meeting_returns_404(
+    authenticated_client: TestClient,
+) -> None:
+    response = authenticated_client.delete(
+        "/api/v1/meetings/999999"
     )
 
     assert response.status_code == 404

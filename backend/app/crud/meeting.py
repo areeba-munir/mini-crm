@@ -145,3 +145,14 @@ def update_meeting(
 
     db.refresh(meeting)
     return meeting
+def delete_meeting(
+    db: Session,
+    meeting: Meeting,
+) -> None:
+    db.delete(meeting)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
