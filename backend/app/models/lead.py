@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from app.models.company import Company
     from app.models.contact import Contact
     from app.models.task import Task
+    from app.models.note import Note
 
 
 class LeadStage(str, Enum):
@@ -136,6 +137,10 @@ class Lead(Base):
         back_populates="leads"
     )
     tasks: Mapped[list["Task"]] = relationship(
+    back_populates="lead",
+    passive_deletes=True,
+    )
+    notes: Mapped[list["Note"]] = relationship(
     back_populates="lead",
     passive_deletes=True,
     )

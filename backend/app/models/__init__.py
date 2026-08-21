@@ -8,6 +8,7 @@ from app.models.task import (
     TaskStatus,
 )
 from app.models.user import User
+from app.models.note import Note
 
 __all__ = [
     "Company",
@@ -20,4 +21,5 @@ __all__ = [
     "User",
     "Meeting",
     "MeetingStatus",
+    "Note",
 ]

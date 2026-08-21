@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from app.models.contact import Contact
     from app.models.task import Task
     from app.models.meeting import Meeting
+    from app.models.note import Note
 
 
 class Company(Base):
@@ -69,6 +70,10 @@ class Company(Base):
         passive_deletes=True,
     )
     meetings: Mapped[list["Meeting"]] = relationship(
+    back_populates="company",
+    passive_deletes=True,
+    )
+    notes: Mapped[list["Note"]] = relationship(
     back_populates="company",
     passive_deletes=True,
     )

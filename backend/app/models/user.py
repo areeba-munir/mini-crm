@@ -19,6 +19,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.task import Task
     from app.models.meeting import Meeting
+    from app.models.note import Note
 
 
 class User(Base):
@@ -86,4 +87,8 @@ class User(Base):
         back_populates="user_participants",
         passive_deletes=True,
     )
+    )
+    notes: Mapped[list["Note"]] = relationship(
+    back_populates="author",
+    passive_deletes=True,
     )
