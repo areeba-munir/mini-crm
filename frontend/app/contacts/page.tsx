@@ -115,40 +115,40 @@ export default function ContactsPage() {
   }
 
   return (
-   <AppShell user={user}>
-  <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <p className="text-sm font-medium text-blue-400">
-        Clients
-      </p>
+    <AppShell user={user}>
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-blue-400">
+            Clients
+          </p>
 
-      <h1 className="mt-1 text-3xl font-bold">
-        Contacts
-      </h1>
+          <h1 className="mt-1 text-3xl font-bold">
+            Contacts
+          </h1>
 
-      <p className="mt-2 text-sm text-slate-400">
-        View people and their related companies.
-      </p>
-    </div>
+          <p className="mt-2 text-sm text-slate-400">
+            View people and their related companies.
+          </p>
+        </div>
 
-    <div className="flex flex-col gap-3 sm:items-end">
-      <Link
-        className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
-        href="/contacts/new"
-      >
-        Add contact
-      </Link>
+        <div className="flex flex-col gap-3 sm:items-end">
+          <Link
+            className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
+            href="/contacts/new"
+          >
+            Add contact
+          </Link>
 
-      <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
-        <span className="text-slate-400">
-          Total contacts:
-        </span>{" "}
-        <span className="font-semibold text-white">
-          {contacts.length}
-        </span>
-      </div>
-    </div>
-  </section>
+          <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
+            <span className="text-slate-400">
+              Total contacts:
+            </span>{" "}
+            <span className="font-semibold text-white">
+              {contacts.length}
+            </span>
+          </div>
+        </div>
+      </section>
 
       {isDataLoading && (
         <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
@@ -190,7 +190,7 @@ export default function ContactsPage() {
         contacts.length > 0 && (
           <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] text-left">
+              <table className="w-full min-w-[950px] text-left">
                 <thead className="border-b border-slate-800">
                   <tr className="text-xs uppercase tracking-wider text-slate-500">
                     <th className="px-6 py-4 font-medium">
@@ -211,6 +211,10 @@ export default function ContactsPage() {
 
                     <th className="px-6 py-4 font-medium">
                       Phone
+                    </th>
+
+                    <th className="px-6 py-4 text-right font-medium">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -260,6 +264,15 @@ export default function ContactsPage() {
 
                         <td className="px-6 py-4 text-sm text-slate-300">
                           {contact.phone ?? "—"}
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <Link
+                            className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                            href={`/contacts/${contact.id}/edit`}
+                          >
+                            Edit
+                          </Link>
                         </td>
                       </tr>
                     );
