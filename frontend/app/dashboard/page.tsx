@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { AppShell } from "@/components/layout/app-shell";
 import { ApiError } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth-api";
 import {
@@ -116,11 +117,6 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-  function handleLogout() {
-    removeAccessToken();
-    router.replace("/login");
-  }
-
   if (errorMessage) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
@@ -163,130 +159,94 @@ export default function DashboardPage() {
   });
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <header className="border-b border-slate-800 bg-slate-900">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-400">
-              Mini CRM
-            </p>
+    <AppShell user={user}>
+      <section>
+        <p className="text-sm text-slate-400">
+          Welcome back,
+        </p>
 
-            <h1 className="mt-1 text-xl font-bold">
-              Dashboard
-            </h1>
-          </div>
+        <h1 className="mt-1 text-3xl font-bold">
+          {user.full_name}
+        </h1>
 
-          <div className="flex items-center gap-4">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-slate-200">
-                {user.full_name}
-              </p>
+        <p className="mt-2 text-sm text-slate-400">
+          Here is the latest overview of your CRM.
+        </p>
+      </section>
 
-              <p className="text-xs text-slate-500">
-                {user.email}
-              </p>
-            </div>
+      <section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          description="Organizations stored in the CRM"
+          label="Companies"
+          value={summary.total_companies}
+        />
 
-            <button
-              className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
-              onClick={handleLogout}
-              type="button"
-            >
-              Log out
-            </button>
-          </div>
-        </div>
-      </header>
+        <MetricCard
+          description="People stored in the CRM"
+          label="Contacts"
+          value={summary.total_contacts}
+        />
 
-      <div className="mx-auto max-w-7xl px-6 py-10">
-        <section>
-          <p className="text-sm text-slate-400">
-            Welcome back,
-          </p>
+        <MetricCard
+          description="All sales opportunities"
+          label="Leads"
+          value={summary.total_leads}
+        />
 
-          <h2 className="mt-1 text-3xl font-bold">
-            {user.full_name}
+        <MetricCard
+          description="Value of open sales opportunities"
+          label="Pipeline value"
+          value={formattedPipelineValue}
+        />
+
+        <MetricCard
+          description="Work that still needs attention"
+          label="Pending tasks"
+          value={summary.pending_tasks}
+        />
+
+        <MetricCard
+          danger={summary.overdue_tasks > 0}
+          description="Tasks past their due date"
+          label="Overdue tasks"
+          value={summary.overdue_tasks}
+        />
+
+        <MetricCard
+          description="Scheduled future meetings"
+          label="Upcoming meetings"
+          value={summary.upcoming_meetings}
+        />
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+        <div>
+          <h2 className="text-lg font-semibold">
+            Lead pipeline
           </h2>
 
-          <p className="mt-2 text-sm text-slate-400">
-            Here is the latest overview of your CRM.
+          <p className="mt-1 text-sm text-slate-400">
+            Number of leads currently in each stage.
           </p>
-        </section>
+        </div>
 
-        <section className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard
-            description="Organizations stored in the CRM"
-            label="Companies"
-            value={summary.total_companies}
-          />
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {leadStages.map((stage) => (
+            <article
+              className="rounded-xl border border-slate-800 bg-slate-950 p-5"
+              key={stage}
+            >
+              <p className="text-sm text-slate-400">
+                {stage}
+              </p>
 
-          <MetricCard
-            description="People stored in the CRM"
-            label="Contacts"
-            value={summary.total_contacts}
-          />
-
-          <MetricCard
-            description="All sales opportunities"
-            label="Leads"
-            value={summary.total_leads}
-          />
-
-          <MetricCard
-            description="Value of open sales opportunities"
-            label="Pipeline value"
-            value={formattedPipelineValue}
-          />
-
-          <MetricCard
-            description="Work that still needs attention"
-            label="Pending tasks"
-            value={summary.pending_tasks}
-          />
-
-          <MetricCard
-            danger={summary.overdue_tasks > 0}
-            description="Tasks past their due date"
-            label="Overdue tasks"
-            value={summary.overdue_tasks}
-          />
-
-          <MetricCard
-            description="Scheduled future meetings"
-            label="Upcoming meetings"
-            value={summary.upcoming_meetings}
-          />
-        </section>
-
-        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-6">
-          <div>
-            <h3 className="text-lg font-semibold">
-              Lead pipeline
-            </h3>
-
-            <p className="mt-1 text-sm text-slate-400">
-              Number of leads currently in each stage.
-            </p>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {leadStages.map((stage) => (
-              <article
-                className="rounded-xl border border-slate-800 bg-slate-950 p-5"
-                key={stage}
-              >
-                <p className="text-sm text-slate-400">
-                  {stage}
-                </p>
-
-                <p className="mt-2 text-2xl font-bold">
-                  {summary.leads_by_stage[stage] ?? 0}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
-      </div>
-    </main>
+              <p className="mt-2 text-2xl font-bold">
+                {summary.leads_by_stage[stage] ?? 0}
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </AppShell>
   );
 }
