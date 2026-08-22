@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.note import Note
-from app.schemas.note import NoteCreate
+from app.schemas.note import NoteCreate, NoteUpdate
 
 
 def create_note(
@@ -45,3 +45,38 @@ def get_note(
     note_id: int,
 ) -> Note | None:
     return db.get(Note, note_id)
+
+
+def update_note(
+    db: Session,
+    note: Note,
+    note_data: NoteUpdate,
+) -> Note:
+    update_data = note_data.model_dump(
+        exclude_unset=True
+    )
+
+    for field, value in update_data.items():
+        setattr(note, field, value)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(note)
+    return note
+
+
+def delete_note(
+    db: Session,
+    note: Note,
+) -> None:
+    db.delete(note)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
