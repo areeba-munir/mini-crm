@@ -1,10 +1,35 @@
-from app.api.routes import auth, companies, contacts, leads, tasks, meetings, notes, search, dashboard
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.routes import (
+    auth,
+    companies,
+    contacts,
+    dashboard,
+    leads,
+    meetings,
+    notes,
+    search,
+    tasks,
+)
+from app.core.config import get_settings
+
 
 app = FastAPI(
     title="Mini CRM API",
     version="0.1.0",
 )
+
+settings = get_settings()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(
     auth.router,
     prefix="/api/v1",
@@ -41,6 +66,11 @@ app.include_router(
     dashboard.router,
     prefix="/api/v1",
 )
-@app.get("/health", tags=["Health"])
+
+
+@app.get(
+    "/health",
+    tags=["Health"],
+)
 def health_check() -> dict[str, str]:
     return {"status": "ok"}

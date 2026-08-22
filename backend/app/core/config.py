@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -16,9 +16,17 @@ class Settings(BaseSettings):
     db_test_name: str = "mini_crm_test"
     db_user: str
     db_password: SecretStr
+
     jwt_secret_key: SecretStr
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
 
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -32,14 +40,19 @@ class Settings(BaseSettings):
         return URL.create(
             drivername="postgresql+psycopg",
             username=self.db_user,
-            password=self.db_password.get_secret_value(),
+            password=(
+                self.db_password.get_secret_value()
+            ),
             host=self.db_host,
             port=self.db_port,
             database=self.db_name,
         )
+
     @property
     def test_database_url(self) -> URL:
-        return self.database_url.set(database=self.db_test_name)
+        return self.database_url.set(
+            database=self.db_test_name
+        )
 
 
 @lru_cache
