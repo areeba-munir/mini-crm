@@ -4,12 +4,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DeleteContactDialog } from "@/components/contacts/delete-contact-dialog";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
 import { ApiError } from "@/lib/api";
 import { removeAccessToken } from "@/lib/auth-storage";
 import { listCompanies } from "@/lib/companies-api";
-import { listContacts } from "@/lib/contacts-api";
+import {
+  deleteContact,
+  listContacts,
+} from "@/lib/contacts-api";
 import type { Company } from "@/types/company";
 import type { Contact } from "@/types/contact";
 
@@ -32,6 +36,13 @@ export default function ContactsPage() {
   const [isDataLoading, setIsDataLoading] =
     useState(true);
   const [dataError, setDataError] = useState("");
+
+  const [contactToDelete, setContactToDelete] =
+    useState<Contact | null>(null);
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+  const [deleteError, setDeleteError] =
+    useState("");
 
   useEffect(() => {
     if (!token) {
@@ -93,6 +104,48 @@ export default function ContactsPage() {
       company.name,
     ]),
   );
+
+  async function handleDeleteContact() {
+    if (!token || !contactToDelete) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await deleteContact(
+        contactToDelete.id,
+        token,
+      );
+
+      setContacts((currentContacts) =>
+        currentContacts.filter(
+          (contact) =>
+            contact.id !== contactToDelete.id,
+        ),
+      );
+
+      setContactToDelete(null);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        removeAccessToken();
+        router.replace("/login");
+        return;
+      }
+
+      setDeleteError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to delete the contact.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   if (isAuthenticationLoading || !user || !token) {
     if (authenticationError) {
@@ -190,7 +243,7 @@ export default function ContactsPage() {
         contacts.length > 0 && (
           <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[950px] text-left">
+              <table className="w-full min-w-[1000px] text-left">
                 <thead className="border-b border-slate-800">
                   <tr className="text-xs uppercase tracking-wider text-slate-500">
                     <th className="px-6 py-4 font-medium">
@@ -266,13 +319,28 @@ export default function ContactsPage() {
                           {contact.phone ?? "—"}
                         </td>
 
-                        <td className="px-6 py-4 text-right">
-                          <Link
-                            className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
-                            href={`/contacts/${contact.id}/edit`}
-                          >
-                            Edit
-                          </Link>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-4">
+                            <Link
+                              className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                              href={`/contacts/${contact.id}/edit`}
+                            >
+                              Edit
+                            </Link>
+
+                            <button
+                              className="text-sm font-semibold text-red-400 transition hover:text-red-300"
+                              onClick={() => {
+                                setDeleteError("");
+                                setContactToDelete(
+                                  contact,
+                                );
+                              }}
+                              type="button"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -282,6 +350,24 @@ export default function ContactsPage() {
             </div>
           </section>
         )}
+
+      {contactToDelete && (
+        <DeleteContactDialog
+          contactName={[
+            contactToDelete.first_name,
+            contactToDelete.last_name,
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          errorMessage={deleteError}
+          isDeleting={isDeleting}
+          onCancel={() => {
+            setDeleteError("");
+            setContactToDelete(null);
+          }}
+          onConfirm={handleDeleteContact}
+        />
+      )}
     </AppShell>
   );
 }
