@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -114,13 +115,22 @@ export default function CompaniesPage() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
-          <span className="text-slate-400">
-            Total companies:
-          </span>{" "}
-          <span className="font-semibold text-white">
-            {companies.length}
-          </span>
+        <div className="flex flex-col gap-3 sm:items-end">
+          <Link
+            className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
+            href="/companies/new"
+          >
+            Add company
+          </Link>
+
+          <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
+            <span className="text-slate-400">
+              Total companies:
+            </span>{" "}
+            <span className="font-semibold text-white">
+              {companies.length}
+            </span>
+          </div>
         </div>
       </section>
 
@@ -170,15 +180,19 @@ export default function CompaniesPage() {
                     <th className="px-6 py-4 font-medium">
                       Company
                     </th>
+
                     <th className="px-6 py-4 font-medium">
                       Industry
                     </th>
+
                     <th className="px-6 py-4 font-medium">
                       Email
                     </th>
+
                     <th className="px-6 py-4 font-medium">
                       Phone
                     </th>
+
                     <th className="px-6 py-4 font-medium">
                       Website
                     </th>
