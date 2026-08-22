@@ -5,13 +5,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
+import { DeleteTaskDialog } from "@/components/tasks/delete-task-dialog";
 import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
 import { ApiError } from "@/lib/api";
 import { removeAccessToken } from "@/lib/auth-storage";
 import { listCompanies } from "@/lib/companies-api";
 import { listContacts } from "@/lib/contacts-api";
 import { listLeads } from "@/lib/leads-api";
-import { listTasks } from "@/lib/tasks-api";
+import {
+  deleteTask,
+  listTasks,
+} from "@/lib/tasks-api";
 import type { Company } from "@/types/company";
 import type { Contact } from "@/types/contact";
 import type { Lead } from "@/types/lead";
@@ -86,6 +90,13 @@ export default function TasksPage() {
   const [isDataLoading, setIsDataLoading] =
     useState(true);
   const [dataError, setDataError] = useState("");
+
+  const [taskToDelete, setTaskToDelete] =
+    useState<Task | null>(null);
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+  const [deleteError, setDeleteError] =
+    useState("");
 
   useEffect(() => {
     if (!token || !user) {
@@ -217,6 +228,48 @@ export default function TasksPage() {
     }
 
     return "General task";
+  }
+
+  async function handleDeleteTask() {
+    if (!token || !taskToDelete) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await deleteTask(
+        taskToDelete.id,
+        token,
+      );
+
+      setTasks((currentTasks) =>
+        currentTasks.filter(
+          (task) =>
+            task.id !== taskToDelete.id,
+        ),
+      );
+
+      setTaskToDelete(null);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        removeAccessToken();
+        router.replace("/login");
+        return;
+      }
+
+      setDeleteError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to delete the task.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   if (isAuthenticationLoading || !user || !token) {
@@ -389,7 +442,7 @@ export default function TasksPage() {
         tasks.length > 0 && (
           <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-left">
+              <table className="w-full min-w-[1100px] text-left">
                 <thead className="border-b border-slate-800">
                   <tr className="text-xs uppercase tracking-wider text-slate-500">
                     <th className="px-6 py-4 font-medium">
@@ -487,13 +540,26 @@ export default function TasksPage() {
                             : `User #${task.assigned_to_id}`}
                         </td>
 
-                        <td className="px-6 py-4 text-right">
-                          <Link
-                            className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
-                            href={`/tasks/${task.id}/edit`}
-                          >
-                            Edit
-                          </Link>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-4">
+                            <Link
+                              className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                              href={`/tasks/${task.id}/edit`}
+                            >
+                              Edit
+                            </Link>
+
+                            <button
+                              className="text-sm font-semibold text-red-400 transition hover:text-red-300"
+                              onClick={() => {
+                                setDeleteError("");
+                                setTaskToDelete(task);
+                              }}
+                              type="button"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -503,6 +569,19 @@ export default function TasksPage() {
             </div>
           </section>
         )}
+
+      {taskToDelete && (
+        <DeleteTaskDialog
+          errorMessage={deleteError}
+          isDeleting={isDeleting}
+          onCancel={() => {
+            setDeleteError("");
+            setTaskToDelete(null);
+          }}
+          onConfirm={handleDeleteTask}
+          taskTitle={taskToDelete.title}
+        />
+      )}
     </AppShell>
   );
 }
