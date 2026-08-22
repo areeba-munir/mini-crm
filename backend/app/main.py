@@ -1,4 +1,4 @@
-from app.api.routes import auth, companies, contacts, leads, tasks, meetings
+from app.api.routes import auth, companies, contacts, leads, tasks, meetings, notes
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -29,7 +29,10 @@ app.include_router(
     meetings.router,
     prefix="/api/v1",
 )
-
+app.include_router(
+    notes.router,
+    prefix="/api/v1",
+)
 
 @app.get("/health", tags=["Health"])
 def health_check() -> dict[str, str]:
