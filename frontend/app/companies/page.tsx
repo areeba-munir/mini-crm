@@ -174,7 +174,7 @@ export default function CompaniesPage() {
         companies.length > 0 && (
           <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-left">
+              <table className="w-full min-w-[900px] text-left">
                 <thead className="border-b border-slate-800 bg-slate-900">
                   <tr className="text-xs uppercase tracking-wider text-slate-500">
                     <th className="px-6 py-4 font-medium">
@@ -195,6 +195,10 @@ export default function CompaniesPage() {
 
                     <th className="px-6 py-4 font-medium">
                       Website
+                    </th>
+
+                    <th className="px-6 py-4 text-right font-medium">
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -229,6 +233,15 @@ export default function CompaniesPage() {
 
                       <td className="max-w-xs truncate px-6 py-4 text-sm text-slate-300">
                         {company.website ?? "—"}
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <Link
+                          className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                          href={`/companies/${company.id}/edit`}
+                        >
+                          Edit
+                        </Link>
                       </td>
                     </tr>
                   ))}
