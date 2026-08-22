@@ -4,13 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DeleteLeadDialog } from "@/components/leads/delete-lead-dialog";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
 import { ApiError } from "@/lib/api";
 import { removeAccessToken } from "@/lib/auth-storage";
 import { listCompanies } from "@/lib/companies-api";
 import { listContacts } from "@/lib/contacts-api";
-import { listLeads } from "@/lib/leads-api";
+import {
+  deleteLead,
+  listLeads,
+} from "@/lib/leads-api";
 import type { Company } from "@/types/company";
 import type { Contact } from "@/types/contact";
 import type {
@@ -63,6 +67,13 @@ export default function LeadsPage() {
   const [isDataLoading, setIsDataLoading] =
     useState(true);
   const [dataError, setDataError] = useState("");
+
+  const [leadToDelete, setLeadToDelete] =
+    useState<Lead | null>(null);
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+  const [deleteError, setDeleteError] =
+    useState("");
 
   useEffect(() => {
     if (!token) {
@@ -144,6 +155,48 @@ export default function LeadsPage() {
         .join(" "),
     ]),
   );
+
+  async function handleDeleteLead() {
+    if (!token || !leadToDelete) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await deleteLead(
+        leadToDelete.id,
+        token,
+      );
+
+      setLeads((currentLeads) =>
+        currentLeads.filter(
+          (lead) =>
+            lead.id !== leadToDelete.id,
+        ),
+      );
+
+      setLeadToDelete(null);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        removeAccessToken();
+        router.replace("/login");
+        return;
+      }
+
+      setDeleteError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to delete the lead.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   if (isAuthenticationLoading || !user || !token) {
     if (authenticationError) {
@@ -266,7 +319,7 @@ export default function LeadsPage() {
         leads.length > 0 && (
           <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-left">
+              <table className="w-full min-w-[1100px] text-left">
                 <thead className="border-b border-slate-800">
                   <tr className="text-xs uppercase tracking-wider text-slate-500">
                     <th className="px-6 py-4 font-medium">
@@ -362,13 +415,26 @@ export default function LeadsPage() {
                             "—"}
                         </td>
 
-                        <td className="px-6 py-4 text-right">
-                          <Link
-                            className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
-                            href={`/leads/${lead.id}/edit`}
-                          >
-                            Edit
-                          </Link>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-end gap-4">
+                            <Link
+                              className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                              href={`/leads/${lead.id}/edit`}
+                            >
+                              Edit
+                            </Link>
+
+                            <button
+                              className="text-sm font-semibold text-red-400 transition hover:text-red-300"
+                              onClick={() => {
+                                setDeleteError("");
+                                setLeadToDelete(lead);
+                              }}
+                              type="button"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -378,6 +444,19 @@ export default function LeadsPage() {
             </div>
           </section>
         )}
+
+      {leadToDelete && (
+        <DeleteLeadDialog
+          errorMessage={deleteError}
+          isDeleting={isDeleting}
+          leadTitle={leadToDelete.title}
+          onCancel={() => {
+            setDeleteError("");
+            setLeadToDelete(null);
+          }}
+          onConfirm={handleDeleteLead}
+        />
+      )}
     </AppShell>
   );
 }
