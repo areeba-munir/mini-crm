@@ -1,4 +1,4 @@
-from app.api.routes import auth, companies, contacts, leads, tasks, meetings, notes, search
+from app.api.routes import auth, companies, contacts, leads, tasks, meetings, notes, search, dashboard
 from fastapi import FastAPI
 
 app = FastAPI(
@@ -35,6 +35,10 @@ app.include_router(
 )
 app.include_router(
     search.router,
+    prefix="/api/v1",
+)
+app.include_router(
+    dashboard.router,
     prefix="/api/v1",
 )
 @app.get("/health", tags=["Health"])
