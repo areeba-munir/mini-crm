@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -114,31 +115,40 @@ export default function ContactsPage() {
   }
 
   return (
-    <AppShell user={user}>
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-blue-400">
-            Clients
-          </p>
+   <AppShell user={user}>
+  <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <p className="text-sm font-medium text-blue-400">
+        Clients
+      </p>
 
-          <h1 className="mt-1 text-3xl font-bold">
-            Contacts
-          </h1>
+      <h1 className="mt-1 text-3xl font-bold">
+        Contacts
+      </h1>
 
-          <p className="mt-2 text-sm text-slate-400">
-            View people and their related companies.
-          </p>
-        </div>
+      <p className="mt-2 text-sm text-slate-400">
+        View people and their related companies.
+      </p>
+    </div>
 
-        <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
-          <span className="text-slate-400">
-            Total contacts:
-          </span>{" "}
-          <span className="font-semibold text-white">
-            {contacts.length}
-          </span>
-        </div>
-      </section>
+    <div className="flex flex-col gap-3 sm:items-end">
+      <Link
+        className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
+        href="/contacts/new"
+      >
+        Add contact
+      </Link>
+
+      <div className="rounded-lg border border-slate-800 bg-slate-900 px-4 py-3 text-sm">
+        <span className="text-slate-400">
+          Total contacts:
+        </span>{" "}
+        <span className="font-semibold text-white">
+          {contacts.length}
+        </span>
+      </div>
+    </div>
+  </section>
 
       {isDataLoading && (
         <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
