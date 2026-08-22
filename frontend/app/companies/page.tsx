@@ -4,11 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { DeleteCompanyDialog } from "@/components/companies/delete-company-dialog";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
 import { ApiError } from "@/lib/api";
 import { removeAccessToken } from "@/lib/auth-storage";
-import { listCompanies } from "@/lib/companies-api";
+import {
+  deleteCompany as deleteCompanyRecord,
+  listCompanies,
+} from "@/lib/companies-api";
 import type { Company } from "@/types/company";
 
 export default function CompaniesPage() {
@@ -27,6 +31,13 @@ export default function CompaniesPage() {
   const [isCompaniesLoading, setIsCompaniesLoading] =
     useState(true);
   const [companiesError, setCompaniesError] =
+    useState("");
+
+  const [companyToDelete, setCompanyToDelete] =
+    useState<Company | null>(null);
+  const [isDeleting, setIsDeleting] =
+    useState(false);
+  const [deleteError, setDeleteError] =
     useState("");
 
   useEffect(() => {
@@ -77,6 +88,65 @@ export default function CompaniesPage() {
       cancelled = true;
     };
   }, [router, token]);
+
+  function openDeleteDialog(company: Company) {
+    setDeleteError("");
+    setCompanyToDelete(company);
+  }
+
+  function closeDeleteDialog() {
+    if (isDeleting) {
+      return;
+    }
+
+    setDeleteError("");
+    setCompanyToDelete(null);
+  }
+
+  async function handleDeleteCompany() {
+    const company = companyToDelete;
+    const accessToken = token;
+
+    if (!company || !accessToken) {
+      return;
+    }
+
+    setDeleteError("");
+    setIsDeleting(true);
+
+    try {
+      await deleteCompanyRecord(
+        company.id,
+        accessToken,
+      );
+
+      setCompanies((currentCompanies) =>
+        currentCompanies.filter(
+          (currentCompany) =>
+            currentCompany.id !== company.id,
+        ),
+      );
+
+      setCompanyToDelete(null);
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        removeAccessToken();
+        router.replace("/login");
+        return;
+      }
+
+      setDeleteError(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to delete the company.",
+      );
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   if (isAuthenticationLoading || !user || !token) {
     if (authenticationError) {
@@ -235,13 +305,25 @@ export default function CompaniesPage() {
                         {company.website ?? "—"}
                       </td>
 
-                      <td className="px-6 py-4 text-right">
-                        <Link
-                          className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
-                          href={`/companies/${company.id}/edit`}
-                        >
-                          Edit
-                        </Link>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-4">
+                          <Link
+                            className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                            href={`/companies/${company.id}/edit`}
+                          >
+                            Edit
+                          </Link>
+
+                          <button
+                            className="text-sm font-semibold text-red-400 transition hover:text-red-300"
+                            onClick={() =>
+                              openDeleteDialog(company)
+                            }
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -250,6 +332,14 @@ export default function CompaniesPage() {
             </div>
           </section>
         )}
+
+      <DeleteCompanyDialog
+        company={companyToDelete}
+        errorMessage={deleteError}
+        isDeleting={isDeleting}
+        onCancel={closeDeleteDialog}
+        onConfirm={handleDeleteCompany}
+      />
     </AppShell>
   );
 }
