@@ -57,8 +57,8 @@ export function AppShell({ user, children }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white lg:grid lg:grid-cols-[250px_1fr]">
-      <aside className="border-b border-slate-800 bg-slate-900 lg:min-h-screen lg:border-b-0 lg:border-r">
+    <div className="min-h-screen bg-slate-950 text-white lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
+      <aside className="border-b border-slate-800 bg-slate-900 lg:sticky lg:top-0 lg:h-screen lg:self-start lg:overflow-y-auto lg:border-b-0 lg:border-r">
         <div className="px-6 py-6">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-400">
             Mini CRM
@@ -98,7 +98,7 @@ export function AppShell({ user, children }: AppShellProps) {
       </aside>
 
       <div className="min-w-0">
-        <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+        <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
           <div className="flex min-h-20 items-center justify-between gap-4 px-6">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-slate-200">
