@@ -1,0 +1,404 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+import { AppShell } from "@/components/layout/app-shell";
+import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
+import { ApiError } from "@/lib/api";
+import { removeAccessToken } from "@/lib/auth-storage";
+import { listCompanies } from "@/lib/companies-api";
+import { listContacts } from "@/lib/contacts-api";
+import { listMeetings } from "@/lib/meetings-api";
+import type { Company } from "@/types/company";
+import type { Contact } from "@/types/contact";
+import type {
+  Meeting,
+  MeetingStatus,
+} from "@/types/meeting";
+
+const meetingStatuses: MeetingStatus[] = [
+  "Scheduled",
+  "Completed",
+  "Cancelled",
+];
+
+function getStatusClassName(
+  status: MeetingStatus,
+) {
+  switch (status) {
+    case "Completed":
+      return "bg-emerald-500/10 text-emerald-300";
+    case "Cancelled":
+      return "bg-red-500/10 text-red-300";
+    default:
+      return "bg-blue-500/10 text-blue-300";
+  }
+}
+
+export default function MeetingsPage() {
+  const router = useRouter();
+
+  const {
+    user,
+    token,
+    isLoading: isAuthenticationLoading,
+    errorMessage: authenticationError,
+  } = useAuthenticatedUser();
+
+  const [meetings, setMeetings] = useState<Meeting[]>(
+    [],
+  );
+  const [companies, setCompanies] = useState<Company[]>(
+    [],
+  );
+  const [contacts, setContacts] = useState<Contact[]>(
+    [],
+  );
+  const [selectedStatus, setSelectedStatus] =
+    useState<MeetingStatus | "">("");
+  const [isDataLoading, setIsDataLoading] =
+    useState(true);
+  const [dataError, setDataError] = useState("");
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadMeetingData(
+      accessToken: string,
+    ) {
+      try {
+        const [
+          meetingRecords,
+          companyRecords,
+          contactRecords,
+        ] = await Promise.all([
+          listMeetings(accessToken),
+          listCompanies(accessToken),
+          listContacts(accessToken),
+        ]);
+
+        if (!cancelled) {
+          setMeetings(meetingRecords);
+          setCompanies(companyRecords);
+          setContacts(contactRecords);
+          setIsDataLoading(false);
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          removeAccessToken();
+          router.replace("/login");
+          return;
+        }
+
+        setDataError(
+          error instanceof ApiError
+            ? error.message
+            : "Unable to load meetings.",
+        );
+        setIsDataLoading(false);
+      }
+    }
+
+    void loadMeetingData(token);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, token]);
+
+  const companyNamesById = new Map(
+    companies.map((company) => [
+      company.id,
+      company.name,
+    ]),
+  );
+
+  const contactNamesById = new Map(
+    contacts.map((contact) => [
+      contact.id,
+      [
+        contact.first_name,
+        contact.last_name,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    ]),
+  );
+
+  const filteredMeetings = selectedStatus
+    ? meetings.filter(
+        (meeting) =>
+          meeting.status === selectedStatus,
+      )
+    : meetings;
+
+  if (isAuthenticationLoading || !user || !token) {
+    if (authenticationError) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
+          <p className="text-sm text-red-300">
+            {authenticationError}
+          </p>
+        </main>
+      );
+    }
+
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950">
+        <p className="text-sm text-slate-400">
+          Loading meetings...
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <AppShell user={user}>
+      <section className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm font-medium text-blue-400">
+            Schedule
+          </p>
+
+          <h1 className="mt-1 text-3xl font-bold">
+            Meetings
+          </h1>
+
+          <p className="mt-2 text-sm text-slate-400">
+            Manage meetings with CRM users and
+            contacts.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="text-sm text-slate-300">
+            <span className="mb-2 block">
+              Status
+            </span>
+
+            <select
+              className="min-w-44 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+              onChange={(event) =>
+                setSelectedStatus(
+                  event.target.value as
+                    | MeetingStatus
+                    | "",
+                )
+              }
+              value={selectedStatus}
+            >
+              <option value="">All statuses</option>
+
+              {meetingStatuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <Link
+            className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
+            href="/meetings/new"
+          >
+            Add meeting
+          </Link>
+        </div>
+      </section>
+
+      <p className="mt-5 text-sm text-slate-400">
+        Total meetings:{" "}
+        <span className="font-semibold text-white">
+          {filteredMeetings.length}
+        </span>
+      </p>
+
+      {isDataLoading && (
+        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
+          <p className="text-sm text-slate-400">
+            Loading meeting records...
+          </p>
+        </section>
+      )}
+
+      {!isDataLoading && dataError && (
+        <section className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
+          <h2 className="font-semibold text-red-300">
+            Meetings unavailable
+          </h2>
+
+          <p className="mt-2 text-sm text-red-200">
+            {dataError}
+          </p>
+        </section>
+      )}
+
+      {!isDataLoading &&
+        !dataError &&
+        filteredMeetings.length === 0 && (
+          <section className="mt-8 rounded-2xl border border-dashed border-slate-700 bg-slate-900 p-10 text-center">
+            <h2 className="text-lg font-semibold">
+              No meetings found
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-400">
+              Create a meeting or select a different
+              status.
+            </p>
+          </section>
+        )}
+
+      {!isDataLoading &&
+        !dataError &&
+        filteredMeetings.length > 0 && (
+          <section className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1150px] text-left">
+                <thead className="border-b border-slate-800">
+                  <tr className="text-xs uppercase tracking-wider text-slate-500">
+                    <th className="px-6 py-4 font-medium">
+                      Meeting
+                    </th>
+
+                    <th className="px-6 py-4 font-medium">
+                      Status
+                    </th>
+
+                    <th className="px-6 py-4 font-medium">
+                      Starts
+                    </th>
+
+                    <th className="px-6 py-4 font-medium">
+                      Company
+                    </th>
+
+                    <th className="px-6 py-4 font-medium">
+                      Contact participants
+                    </th>
+
+                    <th className="px-6 py-4 font-medium">
+                      Location
+                    </th>
+
+                    <th className="px-6 py-4 text-right font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-800">
+                  {filteredMeetings.map((meeting) => {
+                    const participantNames =
+                      meeting.contact_participant_ids
+                        .map(
+                          (contactId) =>
+                            contactNamesById.get(
+                              contactId,
+                            ) ??
+                            `Contact #${contactId}`,
+                        )
+                        .join(", ");
+
+                    return (
+                      <tr
+                        className="transition hover:bg-slate-800/50"
+                        key={meeting.id}
+                      >
+                        <td className="px-6 py-4">
+                          <p className="font-medium text-white">
+                            {meeting.title}
+                          </p>
+
+                          <p className="mt-1 text-xs text-slate-500">
+                            Organizer:{" "}
+                            {meeting.organizer_id ===
+                            user.id
+                              ? "You"
+                              : `User #${meeting.organizer_id}`}
+                          </p>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClassName(
+                              meeting.status,
+                            )}`}
+                          >
+                            {meeting.status}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-slate-300">
+                          <p>
+                            {new Date(
+                              meeting.starts_at,
+                            ).toLocaleString()}
+                          </p>
+
+                          <p className="mt-1 text-xs text-slate-500">
+                            Ends{" "}
+                            {new Date(
+                              meeting.ends_at,
+                            ).toLocaleString()}
+                          </p>
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-slate-300">
+                          {meeting.company_id === null
+                            ? "—"
+                            : companyNamesById.get(
+                                meeting.company_id,
+                              ) ?? "Unknown company"}
+                        </td>
+
+                        <td className="max-w-xs px-6 py-4 text-sm text-slate-300">
+                          {participantNames || "—"}
+                        </td>
+
+                        <td className="px-6 py-4 text-sm text-slate-300">
+                          {meeting.meeting_link ? (
+                            <a
+                              className="font-medium text-blue-400 hover:text-blue-300"
+                              href={meeting.meeting_link}
+                              rel="noreferrer"
+                              target="_blank"
+                            >
+                              Join meeting
+                            </a>
+                          ) : (
+                            meeting.location ?? "—"
+                          )}
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <Link
+                            className="text-sm font-semibold text-blue-400 transition hover:text-blue-300"
+                            href={`/meetings/${meeting.id}/edit`}
+                          >
+                            Edit
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+    </AppShell>
+  );
+}
