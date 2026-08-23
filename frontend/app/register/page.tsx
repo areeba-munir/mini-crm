@@ -1,40 +1,58 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { FormEvent } from "react";
 import { useState } from "react";
 
 import { ApiError } from "@/lib/api";
-import { loginUser } from "@/lib/auth-api";
+import { loginUser, registerUser } from "@/lib/auth-api";
 import { saveAccessToken } from "@/lib/auth-storage";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage("");
+
+    const normalizedFullName = fullName.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (password !== passwordConfirmation) {
+      setErrorMessage("Passwords do not match.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      await registerUser({
+        full_name: normalizedFullName,
+        email: normalizedEmail,
+        password,
+      });
+
       const tokenResponse = await loginUser({
-        email,
+        email: normalizedEmail,
         password,
       });
 
       saveAccessToken(tokenResponse.access_token);
       router.replace("/dashboard");
     } catch (error) {
-      if (error instanceof ApiError) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("Unable to connect to the CRM server.");
-      }
+      setErrorMessage(
+        error instanceof ApiError
+          ? error.message
+          : "Unable to create your CRM account.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -48,14 +66,36 @@ export default function LoginPage() {
             Mini CRM
           </p>
 
-          <h1 className="text-3xl font-bold text-white">Welcome back</h1>
+          <h1 className="text-3xl font-bold text-white">Create your account</h1>
 
           <p className="mt-2 text-sm leading-6 text-slate-400">
-            Sign in to manage your companies, contacts, leads and daily work.
+            Register to manage customers, sales, tasks, meetings, and notes.
           </p>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
+          <div>
+            <label
+              className="mb-2 block text-sm font-medium text-slate-200"
+              htmlFor="full-name"
+            >
+              Full name
+            </label>
+
+            <input
+              autoComplete="name"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSubmitting}
+              id="full-name"
+              maxLength={200}
+              onChange={(event) => setFullName(event.target.value)}
+              placeholder="Your full name"
+              required
+              type="text"
+              value={fullName}
+            />
+          </div>
+
           <div>
             <label
               className="mb-2 block text-sm font-medium text-slate-200"
@@ -69,6 +109,7 @@ export default function LoginPage() {
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isSubmitting}
               id="email"
+              maxLength={320}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               required
@@ -86,16 +127,40 @@ export default function LoginPage() {
             </label>
 
             <input
-              autoComplete="current-password"
+              autoComplete="new-password"
               className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={isSubmitting}
               id="password"
+              maxLength={128}
               minLength={8}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter your password"
+              placeholder="At least 8 characters"
               required
               type="password"
               value={password}
+            />
+          </div>
+
+          <div>
+            <label
+              className="mb-2 block text-sm font-medium text-slate-200"
+              htmlFor="password-confirmation"
+            >
+              Confirm password
+            </label>
+
+            <input
+              autoComplete="new-password"
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isSubmitting}
+              id="password-confirmation"
+              maxLength={128}
+              minLength={8}
+              onChange={(event) => setPasswordConfirmation(event.target.value)}
+              placeholder="Enter the password again"
+              required
+              type="password"
+              value={passwordConfirmation}
             />
           </div>
 
@@ -113,12 +178,18 @@ export default function LoginPage() {
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            {isSubmitting ? "Creating account..." : "Create account"}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500">
-          Use an account registered through the Mini CRM API.
+        <p className="mt-6 text-center text-sm text-slate-400">
+          Already have an account?{" "}
+          <Link
+            className="font-semibold text-blue-400 transition hover:text-blue-300"
+            href="/login"
+          >
+            Sign in
+          </Link>
         </p>
       </section>
     </main>
