@@ -36,6 +36,10 @@ const navigationItems = [
     href: "/notes",
     label: "Notes",
   },
+  {
+    href: "/search",
+    label: "Search",
+  },
 ];
 
 type AppShellProps = {
@@ -43,10 +47,7 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-export function AppShell({
-  user,
-  children,
-}: AppShellProps) {
+export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -80,9 +81,7 @@ export function AppShell({
 
             return (
               <Link
-                aria-current={
-                  isActive ? "page" : undefined
-                }
+                aria-current={isActive ? "page" : undefined}
                 className={`shrink-0 rounded-lg px-4 py-3 text-sm font-medium transition ${
                   isActive
                     ? "bg-blue-600 text-white"
@@ -106,9 +105,7 @@ export function AppShell({
                 {user.full_name}
               </p>
 
-              <p className="truncate text-xs text-slate-500">
-                {user.email}
-              </p>
+              <p className="truncate text-xs text-slate-500">{user.email}</p>
             </div>
 
             <button
@@ -121,9 +118,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="px-6 py-8 lg:px-10">
-          {children}
-        </main>
+        <main className="px-6 py-8 lg:px-10">{children}</main>
       </div>
     </div>
   );
