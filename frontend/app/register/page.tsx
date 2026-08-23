@@ -59,7 +59,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12">
+    <main className="flex min-h-screen items-start justify-center bg-slate-950 px-4 py-8">
       <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-8 shadow-2xl">
         <div className="mb-8">
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-blue-400">
