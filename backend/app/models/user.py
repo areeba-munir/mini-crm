@@ -1,9 +1,11 @@
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Enum as SqlEnum,
     String,
     func,
     true,
@@ -17,9 +19,15 @@ from sqlalchemy.orm import (
 from app.db.base import Base
 
 if TYPE_CHECKING:
-    from app.models.task import Task
     from app.models.meeting import Meeting
     from app.models.note import Note
+    from app.models.task import Task
+
+
+class UserRole(str, Enum):
+    ADMIN = "Admin"
+    MANAGER = "Manager"
+    MEMBER = "Member"
 
 
 class User(Base):
@@ -44,6 +52,20 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
+    )
+
+    role: Mapped[UserRole] = mapped_column(
+        SqlEnum(
+            UserRole,
+            name="user_role",
+            values_callable=lambda roles: [
+                role.value for role in roles
+            ],
+        ),
+        nullable=False,
+        default=UserRole.MEMBER,
+        server_default=UserRole.MEMBER.value,
+        index=True,
     )
 
     is_active: Mapped[bool] = mapped_column(
@@ -76,19 +98,24 @@ class User(Base):
         foreign_keys="Task.created_by_id",
         passive_deletes=True,
     )
-    organized_meetings: Mapped[list["Meeting"]] = relationship(
-    back_populates="organizer",
-    foreign_keys="Meeting.organizer_id",
-    passive_deletes=True,
+
+    organized_meetings: Mapped[
+        list["Meeting"]
+    ] = relationship(
+        back_populates="organizer",
+        foreign_keys="Meeting.organizer_id",
+        passive_deletes=True,
     )
-    participating_meetings: Mapped[list["Meeting"]] = (
-    relationship(
+
+    participating_meetings: Mapped[
+        list["Meeting"]
+    ] = relationship(
         secondary="meeting_user_participants",
         back_populates="user_participants",
         passive_deletes=True,
     )
-    )
+
     notes: Mapped[list["Note"]] = relationship(
-    back_populates="author",
-    passive_deletes=True,
+        back_populates="author",
+        passive_deletes=True,
     )

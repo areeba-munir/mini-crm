@@ -11,13 +11,14 @@ from app.api.routes import (
     notes,
     search,
     tasks,
+    users,
 )
 from app.core.config import get_settings
 
 
 app = FastAPI(
     title="Mini CRM API",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 settings = get_settings()
@@ -32,6 +33,10 @@ app.add_middleware(
 
 app.include_router(
     auth.router,
+    prefix="/api/v1",
+)
+app.include_router(
+    users.router,
     prefix="/api/v1",
 )
 app.include_router(

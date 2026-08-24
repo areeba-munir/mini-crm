@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -6,8 +6,9 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.user import (
+    UserAdminUpdate,
     UserCreate,
     UserUpdate,
 )
@@ -28,16 +29,42 @@ def get_user_by_email(
     return db.scalar(statement)
 
 
+def get_user_by_id(
+    db: Session,
+    user_id: int,
+) -> User | None:
+    return db.get(User, user_id)
+
+
+def list_users(
+    db: Session,
+) -> list[User]:
+    statement = select(User).order_by(User.id)
+
+    return list(db.scalars(statement))
+
+
 def create_user(
     db: Session,
     user_data: UserCreate,
 ) -> User:
+    existing_user_count = db.scalar(
+        select(func.count(User.id))
+    ) or 0
+
+    role = (
+        UserRole.ADMIN
+        if existing_user_count == 0
+        else UserRole.MEMBER
+    )
+
     user = User(
         full_name=user_data.full_name,
         email=str(user_data.email),
         password_hash=hash_password(
             user_data.password.get_secret_value()
         ),
+        role=role,
     )
 
     db.add(user)
@@ -75,6 +102,31 @@ def update_user(
     except IntegrityError as error:
         db.rollback()
         raise EmailAlreadyRegisteredError from error
+    except Exception:
+        db.rollback()
+        raise
+
+    db.refresh(user)
+    return user
+
+
+def update_user_administration(
+    db: Session,
+    user: User,
+    user_data: UserAdminUpdate,
+) -> User:
+    update_data = user_data.model_dump(
+        exclude_unset=True
+    )
+
+    if "role" in update_data:
+        user.role = update_data["role"]
+
+    if "is_active" in update_data:
+        user.is_active = update_data["is_active"]
+
+    try:
+        db.commit()
     except Exception:
         db.rollback()
         raise
