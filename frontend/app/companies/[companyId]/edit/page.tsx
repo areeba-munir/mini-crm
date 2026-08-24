@@ -5,28 +5,23 @@ import { useEffect, useState } from "react";
 
 import { CompanyForm } from "@/components/companies/company-form";
 import { AppShell } from "@/components/layout/app-shell";
+import { useToast } from "@/components/ui/toast-provider";
 import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
 import { ApiError } from "@/lib/api";
 import { removeAccessToken } from "@/lib/auth-storage";
-import {
-  getCompany,
-  updateCompany,
-} from "@/lib/companies-api";
-import type {
-  Company,
-  CompanyCreateInput,
-} from "@/types/company";
+import { getCompany, updateCompany } from "@/lib/companies-api";
+import type { Company, CompanyCreateInput } from "@/types/company";
 
 export default function EditCompanyPage() {
   const params = useParams<{
     companyId: string;
   }>();
   const router = useRouter();
+  const { showToast } = useToast();
 
   const companyId = Number(params.companyId);
 
-  const isCompanyIdValid =
-    Number.isInteger(companyId) && companyId >= 1;
+  const isCompanyIdValid = Number.isInteger(companyId) && companyId >= 1;
 
   const {
     user,
@@ -35,12 +30,9 @@ export default function EditCompanyPage() {
     errorMessage: authenticationError,
   } = useAuthenticatedUser();
 
-  const [company, setCompany] =
-    useState<Company | null>(null);
-  const [isCompanyLoading, setIsCompanyLoading] =
-    useState(true);
-  const [companyError, setCompanyError] =
-    useState("");
+  const [company, setCompany] = useState<Company | null>(null);
+  const [isCompanyLoading, setIsCompanyLoading] = useState(true);
+  const [companyError, setCompanyError] = useState("");
 
   useEffect(() => {
     if (!token || !isCompanyIdValid) {
@@ -49,14 +41,9 @@ export default function EditCompanyPage() {
 
     let cancelled = false;
 
-    async function loadCompany(
-      accessToken: string,
-    ) {
+    async function loadCompany(accessToken: string) {
       try {
-        const companyRecord = await getCompany(
-          companyId,
-          accessToken,
-        );
+        const companyRecord = await getCompany(companyId, accessToken);
 
         if (!cancelled) {
           setCompany(companyRecord);
@@ -67,10 +54,7 @@ export default function EditCompanyPage() {
           return;
         }
 
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
+        if (error instanceof ApiError && error.status === 401) {
           removeAccessToken();
           router.replace("/login");
           return;
@@ -90,29 +74,17 @@ export default function EditCompanyPage() {
     return () => {
       cancelled = true;
     };
-  }, [
-    companyId,
-    isCompanyIdValid,
-    router,
-    token,
-  ]);
+  }, [companyId, isCompanyIdValid, router, token]);
 
-  if (
-    isAuthenticationLoading ||
-    !user ||
-    !token
-  ) {
+  if (isAuthenticationLoading || !user || !token) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
         <p
           className={`text-sm ${
-            authenticationError
-              ? "text-red-300"
-              : "text-slate-400"
+            authenticationError ? "text-red-300" : "text-slate-400"
           }`}
         >
-          {authenticationError ||
-            "Loading company editor..."}
+          {authenticationError || "Loading company editor..."}
         </p>
       </main>
     );
@@ -137,9 +109,7 @@ export default function EditCompanyPage() {
   if (isCompanyLoading) {
     return (
       <AppShell user={user}>
-        <p className="text-sm text-slate-400">
-          Loading company...
-        </p>
+        <p className="text-sm text-slate-400">Loading company...</p>
       </AppShell>
     );
   }
@@ -153,28 +123,21 @@ export default function EditCompanyPage() {
           </h1>
 
           <p className="mt-2 text-sm text-red-200">
-            {companyError ||
-              "The company could not be found."}
+            {companyError || "The company could not be found."}
           </p>
         </section>
       </AppShell>
     );
   }
 
-  async function handleUpdateCompany(
-    input: CompanyCreateInput,
-  ) {
+  async function handleUpdateCompany(input: CompanyCreateInput) {
     if (!token || !company) {
-      throw new Error(
-        "Company or authentication data is unavailable.",
-      );
+      throw new Error("Company or authentication data is unavailable.");
     }
 
-    await updateCompany(
-      company.id,
-      input,
-      token,
-    );
+    await updateCompany(company.id, input, token);
+
+    showToast("Company updated successfully.", "success");
 
     router.push("/companies");
   }
@@ -183,20 +146,13 @@ export default function EditCompanyPage() {
     <AppShell user={user}>
       <section className="mx-auto max-w-3xl">
         <div>
-          <p className="text-sm font-medium text-blue-400">
-            Companies
-          </p>
+          <p className="text-sm font-medium text-blue-400">Companies</p>
 
-          <h1 className="mt-1 text-3xl font-bold">
-            Edit company
-          </h1>
+          <h1 className="mt-1 text-3xl font-bold">Edit company</h1>
 
           <p className="mt-2 text-sm text-slate-400">
             Update the information stored for{" "}
-            <span className="font-medium text-slate-200">
-              {company.name}
-            </span>
-            .
+            <span className="font-medium text-slate-200">{company.name}</span>.
           </p>
         </div>
 
