@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 from app.models.company import Company
 from app.models.contact import Contact
 from app.models.lead import Lead, LeadStage
-from app.models.meeting import Meeting, MeetingStatus
+from app.models.meeting import (
+    Meeting,
+    MeetingStatus,
+)
 from app.models.task import Task, TaskStatus
 from app.schemas.dashboard import DashboardSummary
 
@@ -52,6 +55,11 @@ def get_dashboard_summary(
         LeadStage.QUALIFIED,
     )
 
+    active_opportunities = sum(
+        leads_by_stage[stage.value]
+        for stage in open_stages
+    )
+
     pipeline_value_result = db.scalar(
         select(
             func.coalesce(
@@ -73,6 +81,12 @@ def get_dashboard_summary(
         )
     ) or 0
 
+    completed_tasks = db.scalar(
+        select(func.count(Task.id)).where(
+            Task.status == TaskStatus.COMPLETED
+        )
+    ) or 0
+
     overdue_tasks = db.scalar(
         select(func.count(Task.id)).where(
             Task.status != TaskStatus.COMPLETED,
@@ -83,7 +97,8 @@ def get_dashboard_summary(
 
     upcoming_meetings = db.scalar(
         select(func.count(Meeting.id)).where(
-            Meeting.status == MeetingStatus.SCHEDULED,
+            Meeting.status
+            == MeetingStatus.SCHEDULED,
             Meeting.starts_at >= current_time,
         )
     ) or 0
@@ -92,9 +107,13 @@ def get_dashboard_summary(
         total_companies=total_companies,
         total_contacts=total_contacts,
         total_leads=total_leads,
+        active_opportunities=(
+            active_opportunities
+        ),
         pipeline_value=pipeline_value,
         leads_by_stage=leads_by_stage,
         pending_tasks=pending_tasks,
+        completed_tasks=completed_tasks,
         overdue_tasks=overdue_tasks,
         upcoming_meetings=upcoming_meetings,
     )

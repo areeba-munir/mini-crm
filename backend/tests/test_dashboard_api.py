@@ -28,7 +28,10 @@ def test_empty_dashboard_summary(
     assert summary["total_companies"] == 0
     assert summary["total_contacts"] == 0
     assert summary["total_leads"] == 0
-    assert Decimal(summary["pipeline_value"]) == Decimal("0")
+    assert summary["active_opportunities"] == 0
+    assert Decimal(
+        summary["pipeline_value"]
+    ) == Decimal("0")
     assert summary["leads_by_stage"] == {
         "New": 0,
         "Contacted": 0,
@@ -37,6 +40,7 @@ def test_empty_dashboard_summary(
         "Lost": 0,
     }
     assert summary["pending_tasks"] == 0
+    assert summary["completed_tasks"] == 0
     assert summary["overdue_tasks"] == 0
     assert summary["upcoming_meetings"] == 0
 
@@ -53,7 +57,9 @@ def test_dashboard_calculates_crm_metrics(
 
     company = authenticated_client.post(
         "/api/v1/companies",
-        json={"name": "Dashboard Company"},
+        json={
+            "name": "Dashboard Company",
+        },
     ).json()
 
     authenticated_client.post(
@@ -67,8 +73,16 @@ def test_dashboard_calculates_crm_metrics(
 
     lead_values = [
         ("New Lead", "New", "1000.00"),
-        ("Contacted Lead", "Contacted", "500.00"),
-        ("Qualified Lead", "Qualified", "2500.00"),
+        (
+            "Contacted Lead",
+            "Contacted",
+            "500.00",
+        ),
+        (
+            "Qualified Lead",
+            "Qualified",
+            "2500.00",
+        ),
         ("Won Lead", "Won", "9000.00"),
         ("Lost Lead", "Lost", "7000.00"),
     ]
@@ -123,31 +137,50 @@ def test_dashboard_calculates_crm_metrics(
     db_session.add_all(
         [
             Meeting(
-                title="Upcoming scheduled meeting",
-                starts_at=now + timedelta(days=1),
-                ends_at=now + timedelta(
-                    days=1,
-                    hours=1,
+                title=(
+                    "Upcoming scheduled meeting"
+                ),
+                starts_at=(
+                    now + timedelta(days=1)
+                ),
+                ends_at=(
+                    now
+                    + timedelta(
+                        days=1,
+                        hours=1,
+                    )
                 ),
                 status=MeetingStatus.SCHEDULED,
                 organizer_id=current_user["id"],
             ),
             Meeting(
                 title="Past scheduled meeting",
-                starts_at=now - timedelta(days=2),
-                ends_at=now - timedelta(
-                    days=2,
-                    hours=-1,
+                starts_at=(
+                    now - timedelta(days=2)
+                ),
+                ends_at=(
+                    now
+                    - timedelta(
+                        days=2,
+                        hours=-1,
+                    )
                 ),
                 status=MeetingStatus.SCHEDULED,
                 organizer_id=current_user["id"],
             ),
             Meeting(
-                title="Cancelled future meeting",
-                starts_at=now + timedelta(days=2),
-                ends_at=now + timedelta(
-                    days=2,
-                    hours=1,
+                title=(
+                    "Cancelled future meeting"
+                ),
+                starts_at=(
+                    now + timedelta(days=2)
+                ),
+                ends_at=(
+                    now
+                    + timedelta(
+                        days=2,
+                        hours=1,
+                    )
                 ),
                 status=MeetingStatus.CANCELLED,
                 organizer_id=current_user["id"],
@@ -167,6 +200,7 @@ def test_dashboard_calculates_crm_metrics(
     assert summary["total_companies"] == 1
     assert summary["total_contacts"] == 1
     assert summary["total_leads"] == 5
+    assert summary["active_opportunities"] == 3
     assert Decimal(
         summary["pipeline_value"]
     ) == Decimal("4000.00")
@@ -178,6 +212,7 @@ def test_dashboard_calculates_crm_metrics(
         "Lost": 1,
     }
     assert summary["pending_tasks"] == 2
+    assert summary["completed_tasks"] == 1
     assert summary["overdue_tasks"] == 1
     assert summary["upcoming_meetings"] == 1
 
