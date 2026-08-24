@@ -18,6 +18,16 @@ export type LoginInput = {
   password: string;
 };
 
+export type UserUpdateInput = {
+  full_name?: string;
+  email?: string;
+};
+
+export type PasswordChangeInput = {
+  current_password: string;
+  new_password: string;
+};
+
 export type TokenResponse = {
   access_token: string;
   token_type: string;

@@ -40,6 +40,10 @@ const navigationItems = [
     href: "/search",
     label: "Search",
   },
+  {
+    href: "/profile",
+    label: "Profile",
+  },
 ];
 
 type AppShellProps = {
@@ -100,13 +104,17 @@ export function AppShell({ user, children }: AppShellProps) {
       <div className="min-w-0">
         <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
           <div className="flex min-h-20 items-center justify-between gap-4 px-6">
-            <div className="min-w-0">
+            <Link
+              className="min-w-0 rounded-lg outline-none transition hover:opacity-80 focus-visible:ring-2 focus-visible:ring-blue-500"
+              href="/profile"
+              title="Open profile"
+            >
               <p className="truncate text-sm font-medium text-slate-200">
                 {user.full_name}
               </p>
 
               <p className="truncate text-xs text-slate-500">{user.email}</p>
-            </div>
+            </Link>
 
             <button
               className="shrink-0 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
