@@ -7,7 +7,13 @@ import { useState, type ReactNode } from "react";
 import { removeAccessToken } from "@/lib/auth-storage";
 import type { User } from "@/types/auth";
 
-const navigationItems = [
+type NavigationItem = {
+  href: string;
+  label: string;
+  adminOnly?: boolean;
+};
+
+const navigationItems: NavigationItem[] = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -41,6 +47,11 @@ const navigationItems = [
     label: "Search",
   },
   {
+    href: "/users",
+    label: "Users",
+    adminOnly: true,
+  },
+  {
     href: "/profile",
     label: "Profile",
   },
@@ -56,6 +67,10 @@ export function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
 
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
+
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => !item.adminOnly || user.role === "Admin",
+  );
 
   function closeMobileNavigation() {
     setIsMobileNavigationOpen(false);
@@ -119,7 +134,7 @@ export function AppShell({ user, children }: AppShellProps) {
           aria-label="CRM navigation"
           className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pb-6"
         >
-          {navigationItems.map((item) => {
+          {visibleNavigationItems.map((item) => {
             const isActive =
               item.href === "/dashboard"
                 ? pathname === item.href
@@ -154,6 +169,10 @@ export function AppShell({ user, children }: AppShellProps) {
             </p>
 
             <p className="mt-1 truncate text-xs text-slate-500">{user.email}</p>
+
+            <p className="mt-1 text-xs font-medium text-blue-400">
+              {user.role}
+            </p>
           </Link>
         </div>
       </aside>
@@ -186,9 +205,15 @@ export function AppShell({ user, children }: AppShellProps) {
                 className="min-w-0 rounded-lg px-2 py-1 transition hover:bg-slate-800"
                 href="/profile"
               >
-                <p className="truncate text-sm font-medium text-slate-200">
-                  {user.full_name}
-                </p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-sm font-medium text-slate-200">
+                    {user.full_name}
+                  </p>
+
+                  <span className="hidden rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-300 sm:inline">
+                    {user.role}
+                  </span>
+                </div>
 
                 <p className="hidden truncate text-xs text-slate-500 sm:block">
                   {user.email}

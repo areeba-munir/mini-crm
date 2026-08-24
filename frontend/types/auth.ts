@@ -1,7 +1,10 @@
+export type UserRole = "Admin" | "Manager" | "Member";
+
 export type User = {
   id: number;
   full_name: string;
   email: string;
+  role: UserRole;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -21,6 +24,11 @@ export type LoginInput = {
 export type UserUpdateInput = {
   full_name?: string;
   email?: string;
+};
+
+export type UserAdminUpdateInput = {
+  role?: UserRole;
+  is_active?: boolean;
 };
 
 export type PasswordChangeInput = {
