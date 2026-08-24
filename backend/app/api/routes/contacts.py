@@ -10,12 +10,16 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import (
+    get_current_manager,
+    get_current_user,
+)
 from app.crud.company import (
     get_company as get_company_record,
 )
 from app.crud.contact import (
     create_contact as create_contact_record,
+    delete_contact as delete_contact_record,
     get_contact as get_contact_record,
     list_contacts as list_contact_records,
     update_contact as update_contact_record,
@@ -56,7 +60,10 @@ def get_contact(
     contact_id: Annotated[int, Path(ge=1)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Contact:
-    contact = get_contact_record(db, contact_id)
+    contact = get_contact_record(
+        db,
+        contact_id,
+    )
 
     if contact is None:
         raise HTTPException(
@@ -71,6 +78,9 @@ def get_contact(
     "",
     response_model=ContactRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def create_contact(
     contact_data: ContactCreate,
@@ -98,13 +108,19 @@ def create_contact(
 @router.patch(
     "/{contact_id}",
     response_model=ContactRead,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def update_contact(
     contact_id: Annotated[int, Path(ge=1)],
     contact_data: ContactUpdate,
     db: Annotated[Session, Depends(get_db)],
 ) -> Contact:
-    contact = get_contact_record(db, contact_id)
+    contact = get_contact_record(
+        db,
+        contact_id,
+    )
 
     if contact is None:
         raise HTTPException(
@@ -135,22 +151,23 @@ def update_contact(
         contact,
         contact_data,
     )
-from app.crud.contact import (
-    create_contact as create_contact_record,
-    delete_contact as delete_contact_record,
-    get_contact as get_contact_record,
-    list_contacts as list_contact_records,
-    update_contact as update_contact_record,
-)
+
+
 @router.delete(
     "/{contact_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def delete_contact(
     contact_id: Annotated[int, Path(ge=1)],
     db: Annotated[Session, Depends(get_db)],
 ) -> None:
-    contact = get_contact_record(db, contact_id)
+    contact = get_contact_record(
+        db,
+        contact_id,
+    )
 
     if contact is None:
         raise HTTPException(
@@ -158,4 +175,7 @@ def delete_contact(
             detail="Contact not found",
         )
 
-    delete_contact_record(db, contact)
+    delete_contact_record(
+        db,
+        contact,
+    )

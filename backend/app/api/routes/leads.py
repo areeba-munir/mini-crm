@@ -1,5 +1,6 @@
-from typing import Annotated
 from collections.abc import Sequence
+from typing import Annotated
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -8,10 +9,12 @@ from fastapi import (
     Query,
     status,
 )
-
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import (
+    get_current_manager,
+    get_current_user,
+)
 from app.crud.company import (
     get_company as get_company_record,
 )
@@ -27,7 +30,11 @@ from app.crud.lead import (
 )
 from app.db.session import get_db
 from app.models.lead import Lead, LeadStage
-from app.schemas.lead import LeadCreate, LeadRead, LeadUpdate
+from app.schemas.lead import (
+    LeadCreate,
+    LeadRead,
+    LeadUpdate,
+)
 
 
 router = APIRouter(
@@ -37,6 +44,8 @@ router = APIRouter(
         Depends(get_current_user),
     ],
 )
+
+
 @router.get(
     "",
     response_model=list[LeadRead],
@@ -62,7 +71,10 @@ def get_lead(
     lead_id: Annotated[int, Path(ge=1)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Lead:
-    lead = get_lead_record(db, lead_id)
+    lead = get_lead_record(
+        db,
+        lead_id,
+    )
 
     if lead is None:
         raise HTTPException(
@@ -77,6 +89,9 @@ def get_lead(
     "",
     response_model=LeadRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def create_lead(
     lead_data: LeadCreate,
@@ -105,7 +120,10 @@ def create_lead(
                 detail="Contact not found",
             )
 
-        if contact.company_id != lead_data.company_id:
+        if (
+            contact.company_id
+            != lead_data.company_id
+        ):
             raise HTTPException(
                 status_code=(
                     status.HTTP_422_UNPROCESSABLE_CONTENT
@@ -120,16 +138,24 @@ def create_lead(
         db,
         lead_data,
     )
+
+
 @router.patch(
     "/{lead_id}",
     response_model=LeadRead,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def update_lead(
     lead_id: Annotated[int, Path(ge=1)],
     lead_data: LeadUpdate,
     db: Annotated[Session, Depends(get_db)],
 ) -> Lead:
-    lead = get_lead_record(db, lead_id)
+    lead = get_lead_record(
+        db,
+        lead_id,
+    )
 
     if lead is None:
         raise HTTPException(
@@ -139,11 +165,18 @@ def update_lead(
 
     company_id = (
         lead_data.company_id
-        if "company_id" in lead_data.model_fields_set
+        if "company_id"
+        in lead_data.model_fields_set
         else lead.company_id
     )
 
-    if get_company_record(db, company_id) is None:
+    if (
+        get_company_record(
+            db,
+            company_id,
+        )
+        is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Company not found",
@@ -151,7 +184,8 @@ def update_lead(
 
     contact_id = (
         lead_data.contact_id
-        if "contact_id" in lead_data.model_fields_set
+        if "contact_id"
+        in lead_data.model_fields_set
         else lead.contact_id
     )
 
@@ -183,15 +217,23 @@ def update_lead(
         lead,
         lead_data,
     )
+
+
 @router.delete(
     "/{lead_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def delete_lead(
     lead_id: Annotated[int, Path(ge=1)],
     db: Annotated[Session, Depends(get_db)],
 ) -> None:
-    lead = get_lead_record(db, lead_id)
+    lead = get_lead_record(
+        db,
+        lead_id,
+    )
 
     if lead is None:
         raise HTTPException(
@@ -199,4 +241,7 @@ def delete_lead(
             detail="Lead not found",
         )
 
-    delete_lead_record(db, lead)
+    delete_lead_record(
+        db,
+        lead,
+    )

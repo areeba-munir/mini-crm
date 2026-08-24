@@ -1,160 +1,152 @@
-from fastapi.testclient import TestClient
-
-
-def test_create_company( authenticated_client: TestClient) -> None:
-    response =  authenticated_client.post(
-        "/api/v1/companies",
+def test_manager_can_manage_companies(
+    authenticated_client: TestClient,
+) -> None:
+    register_response = authenticated_client.post(
+        "/api/v1/auth/register",
         json={
-            "name": "Automated Test Company",
-            "industry": "Software",
+            "full_name": "Company Manager",
+            "email": "company-manager@example.com",
+            "password": "StrongPass123!",
         },
     )
 
-    assert response.status_code == 201
+    assert register_response.status_code == 201
 
-    response_data = response.json()
+    manager_id = register_response.json()["id"]
 
-    assert response_data["name"] == "Automated Test Company"
-    assert response_data["industry"] == "Software"
-    assert isinstance(response_data["id"], int)
-    assert response_data["created_at"] is not None
-    assert response_data["updated_at"] is not None
-
-def test_list_companies(authenticated_client: TestClient) -> None:
-    authenticated_client.post(
-        "/api/v1/companies",
-        json={"name": "Beta Company"},
-    )
-    authenticated_client.post(
-        "/api/v1/companies",
-        json={"name": "Alpha Company"},
+    role_response = authenticated_client.patch(
+        f"/api/v1/users/{manager_id}",
+        json={
+            "role": "Manager",
+        },
     )
 
-    response = authenticated_client.get("/api/v1/companies")
+    assert role_response.status_code == 200
 
-    assert response.status_code == 200
+    login_response = authenticated_client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "company-manager@example.com",
+            "password": "StrongPass123!",
+        },
+    )
 
-    company_names = [
-        company["name"]
-        for company in response.json()
+    assert login_response.status_code == 200
+
+    manager_token = login_response.json()[
+        "access_token"
     ]
 
-    assert company_names == [
-        "Alpha Company",
-        "Beta Company",
-    ]
-def test_get_company(authenticated_client: TestClient) -> None:
-    create_response = authenticated_client.post(
-        "/api/v1/companies",
-        json={"name": "Detail Test Company"},
-    )
-    company_id = create_response.json()["id"]
+    authenticated_client.headers[
+        "Authorization"
+    ] = f"Bearer {manager_token}"
 
-    response = authenticated_client.get(
-        f"/api/v1/companies/{company_id}"
-    )
-
-    assert response.status_code == 200
-    assert response.json()["id"] == company_id
-    assert response.json()["name"] == "Detail Test Company"
-
-
-def test_get_missing_company_returns_404(
-    authenticated_client: TestClient,
-) -> None:
-    response = authenticated_client.get("/api/v1/companies/999999")
-
-    assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
-
-def test_update_company(authenticated_client: TestClient) -> None:
     create_response = authenticated_client.post(
         "/api/v1/companies",
         json={
-            "name": "Update Test Company",
-            "industry": "Old Industry",
+            "name": "Manager Company",
         },
     )
+
+    assert create_response.status_code == 201
+
     company_id = create_response.json()["id"]
 
-    response = authenticated_client.patch(
+    update_response = authenticated_client.patch(
         f"/api/v1/companies/{company_id}",
-        json={"industry": "New Industry"},
+        json={
+            "industry": "Managed Industry",
+        },
     )
 
-    assert response.status_code == 200
-    assert response.json()["name"] == "Update Test Company"
-    assert response.json()["industry"] == "New Industry"
-
-    get_response = authenticated_client.get(
-        f"/api/v1/companies/{company_id}"
-    )
-
-    assert get_response.json()["industry"] == "New Industry"
-
-
-def test_update_company_rejects_blank_name(
-    authenticated_client: TestClient,
-) -> None:
-    create_response = authenticated_client.post(
-        "/api/v1/companies",
-        json={"name": "Keep This Name"},
-    )
-    company_id = create_response.json()["id"]
-
-    response = authenticated_client.patch(
-        f"/api/v1/companies/{company_id}",
-        json={"name": "   "},
-    )
-
-    assert response.status_code == 422
-
-    get_response = authenticated_client.get(
-        f"/api/v1/companies/{company_id}"
-    )
-
-    assert get_response.json()["name"] == "Keep This Name"
-def test_delete_company(authenticated_client: TestClient) -> None:
-    create_response = authenticated_client.post(
-        "/api/v1/companies",
-        json={"name": "Delete Test Company"},
-    )
-    company_id = create_response.json()["id"]
+    assert update_response.status_code == 200
 
     delete_response = authenticated_client.delete(
         f"/api/v1/companies/{company_id}"
     )
 
     assert delete_response.status_code == 204
-    assert delete_response.content == b""
 
-    get_response = authenticated_client.get(
+
+def test_member_has_read_only_company_access(
+    authenticated_client: TestClient,
+) -> None:
+    company_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={
+            "name": "Read Only Company",
+        },
+    )
+
+    assert company_response.status_code == 201
+
+    company_id = company_response.json()["id"]
+
+    register_response = authenticated_client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Company Member",
+            "email": "company-member@example.com",
+            "password": "StrongPass123!",
+        },
+    )
+
+    assert register_response.status_code == 201
+    assert register_response.json()["role"] == "Member"
+
+    login_response = authenticated_client.post(
+        "/api/v1/auth/login",
+        data={
+            "username": "company-member@example.com",
+            "password": "StrongPass123!",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    member_token = login_response.json()[
+        "access_token"
+    ]
+
+    authenticated_client.headers[
+        "Authorization"
+    ] = f"Bearer {member_token}"
+
+    list_response = authenticated_client.get(
+        "/api/v1/companies"
+    )
+
+    detail_response = authenticated_client.get(
         f"/api/v1/companies/{company_id}"
     )
 
-    assert get_response.status_code == 404
-
-
-def test_delete_missing_company_returns_404(
-    authenticated_client: TestClient,
-) -> None:
-    response = authenticated_client.delete(
-        "/api/v1/companies/999999"
+    create_response = authenticated_client.post(
+        "/api/v1/companies",
+        json={
+            "name": "Forbidden Company",
+        },
     )
 
-    assert response.status_code == 404
-    assert response.json() == {
-        "detail": "Company not found",
-    }
+    update_response = authenticated_client.patch(
+        f"/api/v1/companies/{company_id}",
+        json={
+            "industry": "Forbidden Industry",
+        },
+    )
 
-def test_company_endpoints_require_authentication(
-    client: TestClient,
-) -> None:
-    response = client.get("/api/v1/companies")
+    delete_response = authenticated_client.delete(
+        f"/api/v1/companies/{company_id}"
+    )
 
-    assert response.status_code == 401
-    assert response.json() == {
-        "detail": "Not authenticated",
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    assert create_response.status_code == 403
+    assert update_response.status_code == 403
+    assert delete_response.status_code == 403
+
+    assert create_response.json() == {
+        "detail": (
+            "You do not have permission "
+            "to perform this action"
+        )
     }

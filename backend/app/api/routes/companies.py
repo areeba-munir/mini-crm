@@ -1,10 +1,20 @@
 from collections.abc import Sequence
 from typing import Annotated
 
-from app.api.dependencies import get_current_user
-from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Path,
+    Response,
+    status,
+)
 from sqlalchemy.orm import Session
 
+from app.api.dependencies import (
+    get_current_manager,
+    get_current_user,
+)
 from app.crud.company import (
     create_company as create_company_record,
     delete_company as delete_company_record,
@@ -14,7 +24,11 @@ from app.crud.company import (
 )
 from app.db.session import get_db
 from app.models.company import Company
-from app.schemas.company import CompanyCreate, CompanyRead, CompanyUpdate
+from app.schemas.company import (
+    CompanyCreate,
+    CompanyRead,
+    CompanyUpdate,
+)
 
 
 router = APIRouter(
@@ -40,12 +54,18 @@ def get_companies(
     "",
     response_model=CompanyRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def create_company(
     company_data: CompanyCreate,
     db: Annotated[Session, Depends(get_db)],
 ) -> Company:
-    return create_company_record(db, company_data)
+    return create_company_record(
+        db,
+        company_data,
+    )
 
 
 @router.get(
@@ -56,7 +76,10 @@ def get_company(
     company_id: Annotated[int, Path(ge=1)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Company:
-    company = get_company_record(db, company_id)
+    company = get_company_record(
+        db,
+        company_id,
+    )
 
     if company is None:
         raise HTTPException(
@@ -70,13 +93,19 @@ def get_company(
 @router.patch(
     "/{company_id}",
     response_model=CompanyRead,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def update_company(
     company_id: Annotated[int, Path(ge=1)],
     company_data: CompanyUpdate,
     db: Annotated[Session, Depends(get_db)],
 ) -> Company:
-    company = get_company_record(db, company_id)
+    company = get_company_record(
+        db,
+        company_id,
+    )
 
     if company is None:
         raise HTTPException(
@@ -89,15 +118,23 @@ def update_company(
         company,
         company_data,
     )
+
+
 @router.delete(
     "/{company_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
 def delete_company(
     company_id: Annotated[int, Path(ge=1)],
     db: Annotated[Session, Depends(get_db)],
 ) -> Response:
-    company = get_company_record(db, company_id)
+    company = get_company_record(
+        db,
+        company_id,
+    )
 
     if company is None:
         raise HTTPException(
@@ -105,5 +142,11 @@ def delete_company(
             detail="Company not found",
         )
 
-    delete_company_record(db, company)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    delete_company_record(
+        db,
+        company,
+    )
+
+    return Response(
+        status_code=status.HTTP_204_NO_CONTENT
+    )
