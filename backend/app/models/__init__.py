@@ -1,3 +1,7 @@
+from app.models.activity_log import (
+    ActivityAction,
+    ActivityLog,
+)
 from app.models.company import Company
 from app.models.contact import Contact
 from app.models.lead import Lead, LeadStage
@@ -14,6 +18,8 @@ from app.models.task import (
 from app.models.user import User, UserRole
 
 __all__ = [
+    "ActivityAction",
+    "ActivityLog",
     "Company",
     "Contact",
     "Lead",

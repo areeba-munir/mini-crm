@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from app.models.meeting import Meeting
     from app.models.note import Note
     from app.models.task import Task
+    from app.models.activity_log import ActivityLog
 
 
 class UserRole(str, Enum):
@@ -117,5 +118,11 @@ class User(Base):
 
     notes: Mapped[list["Note"]] = relationship(
         back_populates="author",
+        passive_deletes=True,
+    )
+    activity_logs: Mapped[
+        list["ActivityLog"]
+    ] = relationship(
+        back_populates="actor",
         passive_deletes=True,
     )

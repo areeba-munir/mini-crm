@@ -55,6 +55,8 @@ def get_current_user(
     if user is None or not user.is_active:
         raise authentication_error()
 
+    db.info["activity_actor_id"] = user.id
+
     return user
 
 

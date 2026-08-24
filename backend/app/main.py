@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import app.core.activity  # noqa: F401
 
 from app.api.routes import (
+    activities,
     auth,
     companies,
     contacts,
@@ -71,7 +73,10 @@ app.include_router(
     dashboard.router,
     prefix="/api/v1",
 )
-
+app.include_router(
+    activities.router,
+    prefix="/api/v1",
+)
 
 @app.get(
     "/health",
