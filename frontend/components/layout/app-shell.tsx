@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { removeAccessToken } from "@/lib/auth-storage";
-import type { User } from "@/types/auth";
+import type { User, UserRole } from "@/types/auth";
 
 type NavigationItem = {
   href: string;
   label: string;
-  adminOnly?: boolean;
+  allowedRoles?: UserRole[];
 };
 
 const navigationItems: NavigationItem[] = [
@@ -47,9 +47,14 @@ const navigationItems: NavigationItem[] = [
     label: "Search",
   },
   {
+    href: "/activities",
+    label: "Activity",
+    allowedRoles: ["Admin", "Manager"],
+  },
+  {
     href: "/users",
     label: "Users",
-    adminOnly: true,
+    allowedRoles: ["Admin"],
   },
   {
     href: "/profile",
@@ -62,15 +67,24 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-export function AppShell({ user, children }: AppShellProps) {
+export function AppShell({
+  user,
+  children,
+}: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
+  const [
+    isMobileNavigationOpen,
+    setIsMobileNavigationOpen,
+  ] = useState(false);
 
-  const visibleNavigationItems = navigationItems.filter(
-    (item) => !item.adminOnly || user.role === "Admin",
-  );
+  const visibleNavigationItems =
+    navigationItems.filter(
+      (item) =>
+        !item.allowedRoles ||
+        item.allowedRoles.includes(user.role),
+    );
 
   function closeMobileNavigation() {
     setIsMobileNavigationOpen(false);
@@ -96,7 +110,9 @@ export function AppShell({ user, children }: AppShellProps) {
       <aside
         aria-label="Main navigation"
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-auto lg:translate-x-0 lg:self-start ${
-          isMobileNavigationOpen ? "translate-x-0" : "-translate-x-full"
+          isMobileNavigationOpen
+            ? "translate-x-0"
+            : "-translate-x-full"
         }`}
         id="mobile-navigation"
       >
@@ -125,7 +141,10 @@ export function AppShell({ user, children }: AppShellProps) {
               strokeWidth="2"
               viewBox="0 0 24 24"
             >
-              <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+              <path
+                d="M6 6l12 12M18 6 6 18"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </div>
@@ -142,7 +161,9 @@ export function AppShell({ user, children }: AppShellProps) {
 
             return (
               <Link
-                aria-current={isActive ? "page" : undefined}
+                aria-current={
+                  isActive ? "page" : undefined
+                }
                 className={`rounded-lg px-4 py-3 text-sm font-medium transition ${
                   isActive
                     ? "bg-blue-600 text-white"
@@ -168,7 +189,9 @@ export function AppShell({ user, children }: AppShellProps) {
               {user.full_name}
             </p>
 
-            <p className="mt-1 truncate text-xs text-slate-500">{user.email}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">
+              {user.email}
+            </p>
 
             <p className="mt-1 text-xs font-medium text-blue-400">
               {user.role}
@@ -183,10 +206,14 @@ export function AppShell({ user, children }: AppShellProps) {
             <div className="flex min-w-0 items-center gap-3">
               <button
                 aria-controls="mobile-navigation"
-                aria-expanded={isMobileNavigationOpen}
+                aria-expanded={
+                  isMobileNavigationOpen
+                }
                 aria-label="Open navigation"
                 className="shrink-0 rounded-lg border border-slate-700 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white lg:hidden"
-                onClick={() => setIsMobileNavigationOpen(true)}
+                onClick={() =>
+                  setIsMobileNavigationOpen(true)
+                }
                 type="button"
               >
                 <svg
@@ -197,7 +224,10 @@ export function AppShell({ user, children }: AppShellProps) {
                   strokeWidth="2"
                   viewBox="0 0 24 24"
                 >
-                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+                  <path
+                    d="M4 6h16M4 12h16M4 18h16"
+                    strokeLinecap="round"
+                  />
                 </svg>
               </button>
 
@@ -231,7 +261,9 @@ export function AppShell({ user, children }: AppShellProps) {
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10">{children}</main>
+        <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+          {children}
+        </main>
       </div>
     </div>
   );
