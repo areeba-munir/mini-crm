@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { ContactForm } from "@/components/contacts/contact-form";
 import { AppShell } from "@/components/layout/app-shell";
+import { useToast } from "@/components/ui/toast-provider";
 import { useAuthenticatedUser } from "@/hooks/use-authenticated-user";
 import { ApiError } from "@/lib/api";
 import { removeAccessToken } from "@/lib/auth-storage";
@@ -15,6 +16,7 @@ import type { ContactCreateInput } from "@/types/contact";
 
 export default function NewContactPage() {
   const router = useRouter();
+  const { showToast } = useToast();
 
   const {
     user,
@@ -23,13 +25,9 @@ export default function NewContactPage() {
     errorMessage: authenticationError,
   } = useAuthenticatedUser();
 
-  const [companies, setCompanies] = useState<Company[]>(
-    [],
-  );
-  const [isCompaniesLoading, setIsCompaniesLoading] =
-    useState(true);
-  const [companiesError, setCompaniesError] =
-    useState("");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isCompaniesLoading, setIsCompaniesLoading] = useState(true);
+  const [companiesError, setCompaniesError] = useState("");
 
   useEffect(() => {
     if (!token) {
@@ -38,13 +36,9 @@ export default function NewContactPage() {
 
     let cancelled = false;
 
-    async function loadCompanies(
-      accessToken: string,
-    ) {
+    async function loadCompanies(accessToken: string) {
       try {
-        const companyRecords = await listCompanies(
-          accessToken,
-        );
+        const companyRecords = await listCompanies(accessToken);
 
         if (!cancelled) {
           setCompanies(companyRecords);
@@ -55,10 +49,7 @@ export default function NewContactPage() {
           return;
         }
 
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
+        if (error instanceof ApiError && error.status === 401) {
           removeAccessToken();
           router.replace("/login");
           return;
@@ -80,22 +71,15 @@ export default function NewContactPage() {
     };
   }, [router, token]);
 
-  if (
-    isAuthenticationLoading ||
-    !user ||
-    !token
-  ) {
+  if (isAuthenticationLoading || !user || !token) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
         <p
           className={`text-sm ${
-            authenticationError
-              ? "text-red-300"
-              : "text-slate-400"
+            authenticationError ? "text-red-300" : "text-slate-400"
           }`}
         >
-          {authenticationError ||
-            "Loading contact form..."}
+          {authenticationError || "Loading contact form..."}
         </p>
       </main>
     );
@@ -104,9 +88,7 @@ export default function NewContactPage() {
   if (isCompaniesLoading) {
     return (
       <AppShell user={user}>
-        <p className="text-sm text-slate-400">
-          Loading companies...
-        </p>
+        <p className="text-sm text-slate-400">Loading companies...</p>
       </AppShell>
     );
   }
@@ -119,24 +101,21 @@ export default function NewContactPage() {
             Contact form unavailable
           </h1>
 
-          <p className="mt-2 text-sm text-red-200">
-            {companiesError}
-          </p>
+          <p className="mt-2 text-sm text-red-200">{companiesError}</p>
         </section>
       </AppShell>
     );
   }
 
-  async function handleCreateContact(
-    input: ContactCreateInput,
-  ) {
+  async function handleCreateContact(input: ContactCreateInput) {
     if (!token) {
-      throw new Error(
-        "Authentication token is unavailable.",
-      );
+      throw new Error("Authentication token is unavailable.");
     }
 
     await createContact(input, token);
+
+    showToast("Contact created successfully.", "success");
+
     router.push("/contacts");
   }
 
@@ -144,17 +123,12 @@ export default function NewContactPage() {
     <AppShell user={user}>
       <section className="mx-auto max-w-3xl">
         <div>
-          <p className="text-sm font-medium text-blue-400">
-            Contacts
-          </p>
+          <p className="text-sm font-medium text-blue-400">Contacts</p>
 
-          <h1 className="mt-1 text-3xl font-bold">
-            Add contact
-          </h1>
+          <h1 className="mt-1 text-3xl font-bold">Add contact</h1>
 
           <p className="mt-2 text-sm text-slate-400">
-            Add a person and optionally connect them
-            to an existing company.
+            Add a person and optionally connect them to an existing company.
           </p>
         </div>
 
