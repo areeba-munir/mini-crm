@@ -11,6 +11,7 @@ from app.api.routes import (
     leads,
     meetings,
     notes,
+    notifications,
     search,
     tasks,
     users,
@@ -75,6 +76,10 @@ app.include_router(
 )
 app.include_router(
     activities.router,
+    prefix="/api/v1",
+)
+app.include_router(
+    notifications.router,
     prefix="/api/v1",
 )
 

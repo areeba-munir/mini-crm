@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from app.models.note import Note
     from app.models.task import Task
     from app.models.activity_log import ActivityLog
+    from app.models.notification import Notification
 
 
 class UserRole(str, Enum):
@@ -124,5 +125,10 @@ class User(Base):
         list["ActivityLog"]
     ] = relationship(
         back_populates="actor",
+        passive_deletes=True,
+    )
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="recipient",
+        cascade="all, delete-orphan",
         passive_deletes=True,
     )

@@ -4,12 +4,35 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.notification import (
+    Notification,
+    NotificationType,
+)
 from app.models.task import (
     Task,
     TaskPriority,
     TaskStatus,
 )
 from app.schemas.task import TaskCreate, TaskUpdate
+
+
+def _add_assignment_notification(
+    db: Session,
+    task: Task,
+) -> None:
+    """Queue a notification without committing separately."""
+    notification = Notification(
+        recipient_id=task.assigned_to_id,
+        notification_type=NotificationType.TASK_ASSIGNED,
+        title="Task assigned",
+        message=(
+            f"You have been assigned task "
+            f"#{task.id}: {task.title}"
+        ),
+        link="/tasks",
+    )
+
+    db.add(notification)
 
 
 def create_task(
@@ -32,6 +55,15 @@ def create_task(
     db.add(task)
 
     try:
+        # Obtain the task ID without committing.
+        db.flush()
+
+        _add_assignment_notification(
+            db,
+            task,
+        )
+
+        # Save the task and notification together.
         db.commit()
     except Exception:
         db.rollback()
@@ -78,6 +110,7 @@ def get_task(
 ) -> Task | None:
     return db.get(Task, task_id)
 
+
 def update_task(
     db: Session,
     task: Task,
@@ -87,7 +120,9 @@ def update_task(
         exclude_unset=True
     )
 
+    previous_assigned_to_id = task.assigned_to_id
     previous_status = task.status
+
     new_status = update_data.get(
         "status",
         previous_status,
@@ -111,6 +146,15 @@ def update_task(
         setattr(task, field, value)
 
     try:
+        if (
+            task.assigned_to_id
+            != previous_assigned_to_id
+        ):
+            _add_assignment_notification(
+                db,
+                task,
+            )
+
         db.commit()
     except Exception:
         db.rollback()
@@ -118,6 +162,8 @@ def update_task(
 
     db.refresh(task)
     return task
+
+
 def delete_task(
     db: Session,
     task: Task,

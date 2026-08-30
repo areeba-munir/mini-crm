@@ -10,6 +10,10 @@ from app.models.meeting import (
     MeetingStatus,
 )
 from app.models.note import Note
+from app.models.notification import (
+    Notification,
+    NotificationType,
+)
 from app.models.task import (
     Task,
     TaskPriority,
@@ -27,6 +31,8 @@ __all__ = [
     "Meeting",
     "MeetingStatus",
     "Note",
+    "Notification",
+    "NotificationType",
     "Task",
     "TaskPriority",
     "TaskStatus",
