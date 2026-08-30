@@ -29,9 +29,20 @@ def test_empty_dashboard_summary(
     assert summary["total_contacts"] == 0
     assert summary["total_leads"] == 0
     assert summary["active_opportunities"] == 0
+
     assert Decimal(
         summary["pipeline_value"]
-    ) == Decimal("0")
+    ) == Decimal("0.00")
+    assert Decimal(
+        summary["weighted_pipeline_value"]
+    ) == Decimal("0.00")
+    assert Decimal(
+        summary["won_value"]
+    ) == Decimal("0.00")
+    assert Decimal(
+        summary["average_open_deal_value"]
+    ) == Decimal("0.00")
+
     assert summary["leads_by_stage"] == {
         "New": 0,
         "Contacted": 0,
@@ -39,10 +50,38 @@ def test_empty_dashboard_summary(
         "Won": 0,
         "Lost": 0,
     }
+
+    assert {
+        stage: Decimal(value)
+        for stage, value in summary[
+            "pipeline_value_by_stage"
+        ].items()
+    } == {
+        "New": Decimal("0.00"),
+        "Contacted": Decimal("0.00"),
+        "Qualified": Decimal("0.00"),
+        "Won": Decimal("0.00"),
+        "Lost": Decimal("0.00"),
+    }
+
+    assert (
+        summary["leads_created_last_30_days"]
+        == 0
+    )
+    assert Decimal(
+        summary["win_rate"]
+    ) == Decimal("0.00")
+
     assert summary["pending_tasks"] == 0
     assert summary["completed_tasks"] == 0
     assert summary["overdue_tasks"] == 0
+    assert summary["tasks_due_next_7_days"] == 0
+    assert Decimal(
+        summary["task_completion_rate"]
+    ) == Decimal("0.00")
+
     assert summary["upcoming_meetings"] == 0
+    assert summary["meetings_next_7_days"] == 0
 
 
 def test_dashboard_calculates_crm_metrics(
@@ -55,14 +94,17 @@ def test_dashboard_calculates_crm_metrics(
         "/api/v1/auth/me"
     ).json()
 
-    company = authenticated_client.post(
+    company_response = authenticated_client.post(
         "/api/v1/companies",
         json={
             "name": "Dashboard Company",
         },
-    ).json()
+    )
 
-    authenticated_client.post(
+    assert company_response.status_code == 201
+    company = company_response.json()
+
+    contact_response = authenticated_client.post(
         "/api/v1/contacts",
         json={
             "first_name": "Dashboard",
@@ -70,6 +112,8 @@ def test_dashboard_calculates_crm_metrics(
             "company_id": company["id"],
         },
     )
+
+    assert contact_response.status_code == 201
 
     lead_values = [
         ("New Lead", "New", "1000.00"),
@@ -88,7 +132,7 @@ def test_dashboard_calculates_crm_metrics(
     ]
 
     for title, stage, value in lead_values:
-        authenticated_client.post(
+        lead_response = authenticated_client.post(
             "/api/v1/leads",
             json={
                 "title": title,
@@ -98,40 +142,67 @@ def test_dashboard_calculates_crm_metrics(
             },
         )
 
-    authenticated_client.post(
-        "/api/v1/tasks",
-        json={
-            "title": "Overdue pending task",
-            "assigned_to_id": current_user["id"],
-            "status": "Pending",
-            "due_at": (
-                now - timedelta(days=1)
-            ).isoformat(),
-        },
+        assert lead_response.status_code == 201
+
+    overdue_task_response = (
+        authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": "Overdue pending task",
+                "assigned_to_id": (
+                    current_user["id"]
+                ),
+                "status": "Pending",
+                "due_at": (
+                    now - timedelta(days=1)
+                ).isoformat(),
+            },
+        )
     )
 
-    authenticated_client.post(
-        "/api/v1/tasks",
-        json={
-            "title": "Future in-progress task",
-            "assigned_to_id": current_user["id"],
-            "status": "In Progress",
-            "due_at": (
-                now + timedelta(days=1)
-            ).isoformat(),
-        },
+    assert overdue_task_response.status_code == 201
+
+    future_task_response = (
+        authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": (
+                    "Future in-progress task"
+                ),
+                "assigned_to_id": (
+                    current_user["id"]
+                ),
+                "status": "In Progress",
+                "due_at": (
+                    now + timedelta(days=1)
+                ).isoformat(),
+            },
+        )
     )
 
-    authenticated_client.post(
-        "/api/v1/tasks",
-        json={
-            "title": "Completed overdue task",
-            "assigned_to_id": current_user["id"],
-            "status": "Completed",
-            "due_at": (
-                now - timedelta(days=2)
-            ).isoformat(),
-        },
+    assert future_task_response.status_code == 201
+
+    completed_task_response = (
+        authenticated_client.post(
+            "/api/v1/tasks",
+            json={
+                "title": (
+                    "Completed overdue task"
+                ),
+                "assigned_to_id": (
+                    current_user["id"]
+                ),
+                "status": "Completed",
+                "due_at": (
+                    now - timedelta(days=2)
+                ).isoformat(),
+            },
+        )
+    )
+
+    assert (
+        completed_task_response.status_code
+        == 201
     )
 
     db_session.add_all(
@@ -201,9 +272,20 @@ def test_dashboard_calculates_crm_metrics(
     assert summary["total_contacts"] == 1
     assert summary["total_leads"] == 5
     assert summary["active_opportunities"] == 3
+
     assert Decimal(
         summary["pipeline_value"]
     ) == Decimal("4000.00")
+    assert Decimal(
+        summary["weighted_pipeline_value"]
+    ) == Decimal("1750.00")
+    assert Decimal(
+        summary["won_value"]
+    ) == Decimal("9000.00")
+    assert Decimal(
+        summary["average_open_deal_value"]
+    ) == Decimal("1333.33")
+
     assert summary["leads_by_stage"] == {
         "New": 1,
         "Contacted": 1,
@@ -211,10 +293,38 @@ def test_dashboard_calculates_crm_metrics(
         "Won": 1,
         "Lost": 1,
     }
+
+    assert {
+        stage: Decimal(value)
+        for stage, value in summary[
+            "pipeline_value_by_stage"
+        ].items()
+    } == {
+        "New": Decimal("1000.00"),
+        "Contacted": Decimal("500.00"),
+        "Qualified": Decimal("2500.00"),
+        "Won": Decimal("9000.00"),
+        "Lost": Decimal("7000.00"),
+    }
+
+    assert (
+        summary["leads_created_last_30_days"]
+        == 5
+    )
+    assert Decimal(
+        summary["win_rate"]
+    ) == Decimal("50.00")
+
     assert summary["pending_tasks"] == 2
     assert summary["completed_tasks"] == 1
     assert summary["overdue_tasks"] == 1
+    assert summary["tasks_due_next_7_days"] == 1
+    assert Decimal(
+        summary["task_completion_rate"]
+    ) == Decimal("33.33")
+
     assert summary["upcoming_meetings"] == 1
+    assert summary["meetings_next_7_days"] == 1
 
 
 def test_dashboard_requires_authentication(
