@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { useNotificationUnreadCount } from "@/hooks/use-notification-unread-count";
 import { removeAccessToken } from "@/lib/auth-storage";
 import type { User, UserRole } from "@/types/auth";
 
@@ -47,6 +48,10 @@ const navigationItems: NavigationItem[] = [
     label: "Search",
   },
   {
+    href: "/notifications",
+    label: "Notifications",
+  },
+  {
     href: "/activities",
     label: "Activity",
     allowedRoles: ["Admin", "Manager"],
@@ -67,24 +72,16 @@ type AppShellProps = {
   children: ReactNode;
 };
 
-export function AppShell({
-  user,
-  children,
-}: AppShellProps) {
+export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const unreadCount = useNotificationUnreadCount();
 
-  const [
-    isMobileNavigationOpen,
-    setIsMobileNavigationOpen,
-  ] = useState(false);
+  const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
 
-  const visibleNavigationItems =
-    navigationItems.filter(
-      (item) =>
-        !item.allowedRoles ||
-        item.allowedRoles.includes(user.role),
-    );
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => !item.allowedRoles || item.allowedRoles.includes(user.role),
+  );
 
   function closeMobileNavigation() {
     setIsMobileNavigationOpen(false);
@@ -110,9 +107,7 @@ export function AppShell({
       <aside
         aria-label="Main navigation"
         className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-auto lg:translate-x-0 lg:self-start ${
-          isMobileNavigationOpen
-            ? "translate-x-0"
-            : "-translate-x-full"
+          isMobileNavigationOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         id="mobile-navigation"
       >
@@ -141,10 +136,7 @@ export function AppShell({
               strokeWidth="2"
               viewBox="0 0 24 24"
             >
-              <path
-                d="M6 6l12 12M18 6 6 18"
-                strokeLinecap="round"
-              />
+              <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
             </svg>
           </button>
         </div>
@@ -161,9 +153,7 @@ export function AppShell({
 
             return (
               <Link
-                aria-current={
-                  isActive ? "page" : undefined
-                }
+                aria-current={isActive ? "page" : undefined}
                 className={`rounded-lg px-4 py-3 text-sm font-medium transition ${
                   isActive
                     ? "bg-blue-600 text-white"
@@ -189,9 +179,7 @@ export function AppShell({
               {user.full_name}
             </p>
 
-            <p className="mt-1 truncate text-xs text-slate-500">
-              {user.email}
-            </p>
+            <p className="mt-1 truncate text-xs text-slate-500">{user.email}</p>
 
             <p className="mt-1 text-xs font-medium text-blue-400">
               {user.role}
@@ -206,14 +194,10 @@ export function AppShell({
             <div className="flex min-w-0 items-center gap-3">
               <button
                 aria-controls="mobile-navigation"
-                aria-expanded={
-                  isMobileNavigationOpen
-                }
+                aria-expanded={isMobileNavigationOpen}
                 aria-label="Open navigation"
                 className="shrink-0 rounded-lg border border-slate-700 p-2 text-slate-300 transition hover:bg-slate-800 hover:text-white lg:hidden"
-                onClick={() =>
-                  setIsMobileNavigationOpen(true)
-                }
+                onClick={() => setIsMobileNavigationOpen(true)}
                 type="button"
               >
                 <svg
@@ -224,10 +208,7 @@ export function AppShell({
                   strokeWidth="2"
                   viewBox="0 0 24 24"
                 >
-                  <path
-                    d="M4 6h16M4 12h16M4 18h16"
-                    strokeLinecap="round"
-                  />
+                  <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
                 </svg>
               </button>
 
@@ -251,19 +232,52 @@ export function AppShell({
               </Link>
             </div>
 
-            <button
-              className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 sm:px-4"
-              onClick={handleLogout}
-              type="button"
-            >
-              Log out
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                aria-label={
+                  unreadCount > 0
+                    ? `Notifications, ${unreadCount} unread`
+                    : "Notifications"
+                }
+                className="relative rounded-lg border border-slate-700 p-2.5 text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white"
+                href="/notifications"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  <path d="M10 21h4" strokeLinecap="round" />
+                </svg>
+
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              <button
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 sm:px-4"
+                onClick={handleLogout}
+                type="button"
+              >
+                Log out
+              </button>
+            </div>
           </div>
         </header>
 
-        <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-          {children}
-        </main>
+        <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-10">{children}</main>
       </div>
     </div>
   );
