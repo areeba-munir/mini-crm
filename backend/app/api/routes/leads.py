@@ -4,9 +4,12 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    File,
     HTTPException,
     Path,
     Query,
+    Response,
+    UploadFile,
     status,
 )
 from sqlalchemy.orm import Session
@@ -14,6 +17,14 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import (
     get_current_manager,
     get_current_user,
+)
+from app.core.company_csv import (
+    MAX_CSV_FILE_SIZE_BYTES,
+)
+from app.core.lead_csv import (
+    export_lead_csv,
+    import_lead_csv,
+    preview_lead_csv,
 )
 from app.crud.company import (
     get_company as get_company_record,
@@ -30,6 +41,10 @@ from app.crud.lead import (
 )
 from app.db.session import get_db
 from app.models.lead import Lead, LeadStage
+from app.schemas.csv_transfer import (
+    CsvImportResult,
+    CsvPreviewResult,
+)
 from app.schemas.lead import (
     LeadCreate,
     LeadRead,
@@ -44,6 +59,28 @@ router = APIRouter(
         Depends(get_current_user),
     ],
 )
+
+
+def _read_csv_upload(
+    upload: UploadFile,
+) -> bytes:
+    filename = upload.filename or ""
+
+    if not filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                "The uploaded file must use "
+                "the .csv extension"
+            ),
+        )
+
+    try:
+        return upload.file.read(
+            MAX_CSV_FILE_SIZE_BYTES + 1
+        )
+    finally:
+        upload.file.close()
 
 
 @router.get(
@@ -64,25 +101,70 @@ def get_leads(
 
 
 @router.get(
-    "/{lead_id}",
-    response_model=LeadRead,
+    "/export",
+    dependencies=[
+        Depends(get_current_manager),
+    ],
 )
-def get_lead(
-    lead_id: Annotated[int, Path(ge=1)],
+def export_leads(
     db: Annotated[Session, Depends(get_db)],
-) -> Lead:
-    lead = get_lead_record(
-        db,
-        lead_id,
+) -> Response:
+    leads = list_lead_records(db)
+
+    return Response(
+        content=export_lead_csv(leads),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="leads.csv"'
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
-    if lead is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Lead not found",
-        )
 
-    return lead
+@router.post(
+    "/import/preview",
+    response_model=CsvPreviewResult,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
+)
+def preview_leads_import(
+    upload: Annotated[
+        UploadFile,
+        File(),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> CsvPreviewResult:
+    content = _read_csv_upload(upload)
+
+    return preview_lead_csv(
+        db,
+        content,
+    )
+
+
+@router.post(
+    "/import",
+    response_model=CsvImportResult,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
+)
+def import_leads(
+    upload: Annotated[
+        UploadFile,
+        File(),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> CsvImportResult:
+    content = _read_csv_upload(upload)
+
+    return import_lead_csv(
+        db,
+        content,
+    )
 
 
 @router.post(
@@ -138,6 +220,28 @@ def create_lead(
         db,
         lead_data,
     )
+
+
+@router.get(
+    "/{lead_id}",
+    response_model=LeadRead,
+)
+def get_lead(
+    lead_id: Annotated[int, Path(ge=1)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Lead:
+    lead = get_lead_record(
+        db,
+        lead_id,
+    )
+
+    if lead is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Lead not found",
+        )
+
+    return lead
 
 
 @router.patch(
