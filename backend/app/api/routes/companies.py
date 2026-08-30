@@ -4,9 +4,11 @@ from typing import Annotated
 from fastapi import (
     APIRouter,
     Depends,
+    File,
     HTTPException,
     Path,
     Response,
+    UploadFile,
     status,
 )
 from sqlalchemy.orm import Session
@@ -14,6 +16,12 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import (
     get_current_manager,
     get_current_user,
+)
+from app.core.company_csv import (
+    MAX_CSV_FILE_SIZE_BYTES,
+    export_company_csv,
+    import_company_csv,
+    preview_company_csv,
 )
 from app.crud.company import (
     create_company as create_company_record,
@@ -29,6 +37,10 @@ from app.schemas.company import (
     CompanyRead,
     CompanyUpdate,
 )
+from app.schemas.csv_transfer import (
+    CsvImportResult,
+    CsvPreviewResult,
+)
 
 
 router = APIRouter(
@@ -40,6 +52,27 @@ router = APIRouter(
 )
 
 
+def _read_csv_upload(
+    upload: UploadFile,
+) -> bytes:
+    filename = upload.filename or ""
+
+    if not filename.lower().endswith(".csv"):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_422_UNPROCESSABLE_CONTENT
+            ),
+            detail="The uploaded file must use the .csv extension",
+        )
+
+    try:
+        return upload.file.read(
+            MAX_CSV_FILE_SIZE_BYTES + 1
+        )
+    finally:
+        upload.file.close()
+
+
 @router.get(
     "",
     response_model=list[CompanyRead],
@@ -48,6 +81,83 @@ def get_companies(
     db: Annotated[Session, Depends(get_db)],
 ) -> Sequence[Company]:
     return list_company_records(db)
+
+
+@router.get(
+    "/export",
+    dependencies=[
+        Depends(get_current_manager),
+    ],
+)
+def export_companies(
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    companies = list_company_records(db)
+    content = export_company_csv(companies)
+
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="companies.csv"'
+            ),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.post(
+    "/import/preview",
+    response_model=CsvPreviewResult,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
+)
+def preview_companies_import(
+    upload: Annotated[
+        UploadFile,
+        File(
+            description=(
+                "UTF-8 CSV file containing company records"
+            )
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> CsvPreviewResult:
+    content = _read_csv_upload(upload)
+
+    return preview_company_csv(
+        db,
+        content,
+    )
+
+
+@router.post(
+    "/import",
+    response_model=CsvImportResult,
+    dependencies=[
+        Depends(get_current_manager),
+    ],
+)
+def import_companies(
+    upload: Annotated[
+        UploadFile,
+        File(
+            description=(
+                "Validated UTF-8 CSV file containing "
+                "company records"
+            )
+        ),
+    ],
+    db: Annotated[Session, Depends(get_db)],
+) -> CsvImportResult:
+    content = _read_csv_upload(upload)
+
+    return import_company_csv(
+        db,
+        content,
+    )
 
 
 @router.post(
