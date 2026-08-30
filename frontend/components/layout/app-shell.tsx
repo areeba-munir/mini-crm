@@ -48,6 +48,11 @@ const navigationItems: NavigationItem[] = [
     label: "Search",
   },
   {
+    href: "/data-transfer",
+    label: "Data Transfer",
+    allowedRoles: ["Admin", "Manager"],
+  },
+  {
     href: "/notifications",
     label: "Notifications",
   },
