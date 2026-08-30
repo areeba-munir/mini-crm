@@ -538,3 +538,316 @@ def test_list_leads_rejects_invalid_stage_filter(
     )
 
     assert response.status_code == 422
+
+def _create_filter_company(
+    authenticated_client: TestClient,
+    name: str,
+) -> int:
+    response = authenticated_client.post(
+        "/api/v1/companies",
+        json={"name": name},
+    )
+
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def _create_filter_lead(
+    authenticated_client: TestClient,
+    company_id: int,
+    title: str,
+    **fields: object,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "title": title,
+        "company_id": company_id,
+    }
+    payload.update(fields)
+
+    response = authenticated_client.post(
+        "/api/v1/leads",
+        json=payload,
+    )
+
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_list_leads_searches_text_fields(
+    authenticated_client: TestClient,
+) -> None:
+    company_id = _create_filter_company(
+        authenticated_client,
+        "Lead Search Company",
+    )
+
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "North Star Migration",
+    )
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "Partner Opportunity",
+        source="Executive Referral",
+    )
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "Platform Renewal",
+        description="Replace the legacy billing system",
+    )
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "Unrelated Opportunity",
+    )
+
+    searches = [
+        ("north star", "North Star Migration"),
+        ("executive referral", "Partner Opportunity"),
+        ("legacy billing", "Platform Renewal"),
+    ]
+
+    for query, expected_title in searches:
+        response = authenticated_client.get(
+            "/api/v1/leads",
+            params={"q": query},
+        )
+
+        assert response.status_code == 200
+        assert [
+            lead["title"]
+            for lead in response.json()
+        ] == [expected_title]
+
+
+def test_list_leads_filters_by_company_and_contact(
+    authenticated_client: TestClient,
+) -> None:
+    first_company_id = _create_filter_company(
+        authenticated_client,
+        "First Filter Company",
+    )
+    second_company_id = _create_filter_company(
+        authenticated_client,
+        "Second Filter Company",
+    )
+
+    contact_response = authenticated_client.post(
+        "/api/v1/contacts",
+        json={
+            "first_name": "Fatima",
+            "company_id": first_company_id,
+        },
+    )
+
+    assert contact_response.status_code == 201
+    contact_id = contact_response.json()["id"]
+
+    _create_filter_lead(
+        authenticated_client,
+        first_company_id,
+        "Contact-linked Lead",
+        contact_id=contact_id,
+    )
+    _create_filter_lead(
+        authenticated_client,
+        first_company_id,
+        "Company-only Lead",
+    )
+    _create_filter_lead(
+        authenticated_client,
+        second_company_id,
+        "Other Company Lead",
+    )
+
+    company_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={"company_id": first_company_id},
+    )
+
+    assert company_response.status_code == 200
+    assert {
+        lead["title"]
+        for lead in company_response.json()
+    } == {
+        "Contact-linked Lead",
+        "Company-only Lead",
+    }
+
+    contact_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={"contact_id": contact_id},
+    )
+
+    assert contact_response.status_code == 200
+    assert [
+        lead["title"]
+        for lead in contact_response.json()
+    ] == ["Contact-linked Lead"]
+
+
+def test_list_leads_filters_value_and_close_date_ranges(
+    authenticated_client: TestClient,
+) -> None:
+    company_id = _create_filter_company(
+        authenticated_client,
+        "Range Filter Company",
+    )
+
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "Low Value Lead",
+        estimated_value="100.00",
+        expected_close_date="2026-09-01",
+    )
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "Middle Value Lead",
+        estimated_value="500.00",
+        expected_close_date="2026-09-15",
+    )
+    _create_filter_lead(
+        authenticated_client,
+        company_id,
+        "High Value Lead",
+        estimated_value="900.00",
+        expected_close_date="2026-10-01",
+    )
+
+    value_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={
+            "min_estimated_value": "200.00",
+            "max_estimated_value": "800.00",
+        },
+    )
+
+    assert value_response.status_code == 200
+    assert [
+        lead["title"]
+        for lead in value_response.json()
+    ] == ["Middle Value Lead"]
+
+    date_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={
+            "expected_close_from": "2026-09-10",
+            "expected_close_to": "2026-09-30",
+        },
+    )
+
+    assert date_response.status_code == 200
+    assert [
+        lead["title"]
+        for lead in date_response.json()
+    ] == ["Middle Value Lead"]
+
+
+def test_list_leads_supports_advanced_sorting(
+    authenticated_client: TestClient,
+) -> None:
+    company_id = _create_filter_company(
+        authenticated_client,
+        "Lead Sorting Company",
+    )
+
+    for title, value, close_date in [
+        ("Low Value", "100.00", "2026-09-30"),
+        ("High Value", "900.00", "2026-09-10"),
+        ("Middle Value", "500.00", "2026-09-20"),
+        ("No Value", None, None),
+    ]:
+        _create_filter_lead(
+            authenticated_client,
+            company_id,
+            title,
+            estimated_value=value,
+            expected_close_date=close_date,
+        )
+
+    expectations = {
+        "oldest": [
+            "Low Value",
+            "High Value",
+            "Middle Value",
+            "No Value",
+        ],
+        "value_high": [
+            "High Value",
+            "Middle Value",
+            "Low Value",
+            "No Value",
+        ],
+        "value_low": [
+            "Low Value",
+            "Middle Value",
+            "High Value",
+            "No Value",
+        ],
+        "close_soon": [
+            "High Value",
+            "Middle Value",
+            "Low Value",
+            "No Value",
+        ],
+    }
+
+    for sort_by, expected_titles in expectations.items():
+        response = authenticated_client.get(
+            "/api/v1/leads",
+            params={"sort_by": sort_by},
+        )
+
+        assert response.status_code == 200
+        assert [
+            lead["title"]
+            for lead in response.json()
+        ] == expected_titles
+
+
+def test_list_leads_rejects_invalid_ranges_and_sort(
+    authenticated_client: TestClient,
+) -> None:
+    value_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={
+            "min_estimated_value": "500.00",
+            "max_estimated_value": "100.00",
+        },
+    )
+
+    assert value_response.status_code == 422
+    assert value_response.json() == {
+        "detail": (
+            "Minimum estimated value cannot "
+            "exceed maximum estimated value"
+        ),
+    }
+
+    date_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={
+            "expected_close_from": "2026-10-01",
+            "expected_close_to": "2026-09-01",
+        },
+    )
+
+    assert date_response.status_code == 422
+    assert date_response.json() == {
+        "detail": (
+            "Expected-close start date cannot "
+            "be after end date"
+        ),
+    }
+
+    sort_response = authenticated_client.get(
+        "/api/v1/leads",
+        params={"sort_by": "invalid"},
+    )
+
+    assert sort_response.status_code == 422

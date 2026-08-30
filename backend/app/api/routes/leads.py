@@ -1,4 +1,6 @@
 from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import (
@@ -33,6 +35,7 @@ from app.crud.contact import (
     get_contact as get_contact_record,
 )
 from app.crud.lead import (
+    LeadSort,
     create_lead as create_lead_record,
     delete_lead as delete_lead_record,
     get_lead as get_lead_record,
@@ -93,10 +96,91 @@ def get_leads(
         LeadStage | None,
         Query(),
     ] = None,
+    q: Annotated[
+        str | None,
+        Query(
+            min_length=1,
+            max_length=200,
+        ),
+    ] = None,
+    company_id: Annotated[
+        int | None,
+        Query(ge=1),
+    ] = None,
+    contact_id: Annotated[
+        int | None,
+        Query(ge=1),
+    ] = None,
+    min_estimated_value: Annotated[
+        Decimal | None,
+        Query(ge=0),
+    ] = None,
+    max_estimated_value: Annotated[
+        Decimal | None,
+        Query(ge=0),
+    ] = None,
+    expected_close_from: Annotated[
+        date | None,
+        Query(),
+    ] = None,
+    expected_close_to: Annotated[
+        date | None,
+        Query(),
+    ] = None,
+    sort_by: Annotated[
+        LeadSort,
+        Query(),
+    ] = "newest",
 ) -> Sequence[Lead]:
+    if (
+        min_estimated_value is not None
+        and max_estimated_value is not None
+        and min_estimated_value
+        > max_estimated_value
+    ):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_422_UNPROCESSABLE_CONTENT
+            ),
+            detail=(
+                "Minimum estimated value cannot "
+                "exceed maximum estimated value"
+            ),
+        )
+
+    if (
+        expected_close_from is not None
+        and expected_close_to is not None
+        and expected_close_from
+        > expected_close_to
+    ):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_422_UNPROCESSABLE_CONTENT
+            ),
+            detail=(
+                "Expected-close start date cannot "
+                "be after end date"
+            ),
+        )
+
     return list_lead_records(
         db,
         stage=stage,
+        search=q,
+        company_id=company_id,
+        contact_id=contact_id,
+        min_estimated_value=(
+            min_estimated_value
+        ),
+        max_estimated_value=(
+            max_estimated_value
+        ),
+        expected_close_from=(
+            expected_close_from
+        ),
+        expected_close_to=expected_close_to,
+        sort_by=sort_by,
     )
 
 
