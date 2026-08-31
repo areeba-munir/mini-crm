@@ -9,8 +9,35 @@ from sqlalchemy.orm import (
 
 from app.models.contact import Contact
 from app.models.meeting import Meeting, MeetingStatus
+from app.models.notification import (
+    Notification,
+    NotificationType,
+)
 from app.models.user import User
 from app.schemas.meeting import MeetingCreate, MeetingUpdate
+
+
+def _add_meeting_invitations(
+    db: Session,
+    meeting: Meeting,
+    recipient_ids: set[int],
+) -> None:
+    """Queue invitations without committing separately."""
+    for recipient_id in sorted(recipient_ids):
+        notification = Notification(
+            recipient_id=recipient_id,
+            notification_type=(
+                NotificationType.MEETING_INVITATION
+            ),
+            title="Meeting invitation",
+            message=(
+                f"You have been invited to meeting "
+                f"#{meeting.id}: {meeting.title}"
+            ),
+            link="/meetings",
+        )
+
+        db.add(notification)
 
 
 def create_meeting(
@@ -27,6 +54,7 @@ def create_meeting(
     )
 
     meeting = Meeting(**meeting_values)
+
     meeting.user_participants = list(
         user_participants
     )
@@ -37,6 +65,21 @@ def create_meeting(
     db.add(meeting)
 
     try:
+        # Obtain the meeting ID without committing.
+        db.flush()
+
+        recipient_ids = {
+            user.id
+            for user in meeting.user_participants
+        }
+
+        _add_meeting_invitations(
+            db,
+            meeting,
+            recipient_ids,
+        )
+
+        # Save the meeting, participants, and invitations together.
         db.commit()
     except Exception:
         db.rollback()
@@ -109,6 +152,7 @@ def get_meeting(
 
     return db.scalar(statement)
 
+
 def update_meeting(
     db: Session,
     meeting: Meeting,
@@ -124,20 +168,42 @@ def update_meeting(
         },
     )
 
-    for field, value in update_values.items():
-        setattr(meeting, field, value)
-
-    if user_participants is not None:
-        meeting.user_participants = list(
-            user_participants
-        )
-
-    if contact_participants is not None:
-        meeting.contact_participants = list(
-            contact_participants
-        )
-
     try:
+        added_user_ids: set[int] = set()
+
+        if user_participants is not None:
+            previous_user_ids = {
+                user.id
+                for user in meeting.user_participants
+            }
+            next_user_ids = {
+                user.id
+                for user in user_participants
+            }
+
+            added_user_ids = (
+                next_user_ids - previous_user_ids
+            )
+
+        for field, value in update_values.items():
+            setattr(meeting, field, value)
+
+        if user_participants is not None:
+            meeting.user_participants = list(
+                user_participants
+            )
+
+        if contact_participants is not None:
+            meeting.contact_participants = list(
+                contact_participants
+            )
+
+        _add_meeting_invitations(
+            db,
+            meeting,
+            added_user_ids,
+        )
+
         db.commit()
     except Exception:
         db.rollback()
@@ -145,6 +211,8 @@ def update_meeting(
 
     db.refresh(meeting)
     return meeting
+
+
 def delete_meeting(
     db: Session,
     meeting: Meeting,

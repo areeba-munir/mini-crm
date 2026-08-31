@@ -10,6 +10,8 @@ from pydantic import (
     model_validator,
 )
 
+from app.models.user import UserRole
+
 
 class UserCreate(BaseModel):
     full_name: str = Field(
@@ -115,10 +117,44 @@ class UserPasswordChange(BaseModel):
         return self
 
 
+class UserAdminUpdate(BaseModel):
+    role: UserRole | None = None
+    is_active: bool | None = None
+
+    @field_validator(
+        "role",
+        "is_active",
+        mode="before",
+    )
+    @classmethod
+    def fields_cannot_be_null(
+        cls,
+        value: object,
+    ) -> object:
+        if value is None:
+            raise ValueError(
+                "Administrative fields cannot be null"
+            )
+
+        return value
+
+    @model_validator(mode="after")
+    def require_update_field(
+        self,
+    ) -> "UserAdminUpdate":
+        if not self.model_fields_set:
+            raise ValueError(
+                "Provide at least one administrative field"
+            )
+
+        return self
+
+
 class UserRead(BaseModel):
     id: int
     full_name: str
     email: EmailStr
+    role: UserRole
     is_active: bool
     created_at: datetime
     updated_at: datetime

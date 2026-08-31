@@ -4,10 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
+import { useNotificationUnreadCount } from "@/hooks/use-notification-unread-count";
 import { removeAccessToken } from "@/lib/auth-storage";
-import type { User } from "@/types/auth";
+import type { User, UserRole } from "@/types/auth";
 
-const navigationItems = [
+type NavigationItem = {
+  href: string;
+  label: string;
+  allowedRoles?: UserRole[];
+};
+
+const navigationItems: NavigationItem[] = [
   {
     href: "/dashboard",
     label: "Dashboard",
@@ -41,6 +48,25 @@ const navigationItems = [
     label: "Search",
   },
   {
+    href: "/data-transfer",
+    label: "Data Transfer",
+    allowedRoles: ["Admin", "Manager"],
+  },
+  {
+    href: "/notifications",
+    label: "Notifications",
+  },
+  {
+    href: "/activities",
+    label: "Activity",
+    allowedRoles: ["Admin", "Manager"],
+  },
+  {
+    href: "/users",
+    label: "Users",
+    allowedRoles: ["Admin"],
+  },
+  {
     href: "/profile",
     label: "Profile",
   },
@@ -54,8 +80,13 @@ type AppShellProps = {
 export function AppShell({ user, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const unreadCount = useNotificationUnreadCount();
 
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
+
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => !item.allowedRoles || item.allowedRoles.includes(user.role),
+  );
 
   function closeMobileNavigation() {
     setIsMobileNavigationOpen(false);
@@ -119,7 +150,7 @@ export function AppShell({ user, children }: AppShellProps) {
           aria-label="CRM navigation"
           className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pb-6"
         >
-          {navigationItems.map((item) => {
+          {visibleNavigationItems.map((item) => {
             const isActive =
               item.href === "/dashboard"
                 ? pathname === item.href
@@ -154,6 +185,10 @@ export function AppShell({ user, children }: AppShellProps) {
             </p>
 
             <p className="mt-1 truncate text-xs text-slate-500">{user.email}</p>
+
+            <p className="mt-1 text-xs font-medium text-blue-400">
+              {user.role}
+            </p>
           </Link>
         </div>
       </aside>
@@ -186,9 +221,15 @@ export function AppShell({ user, children }: AppShellProps) {
                 className="min-w-0 rounded-lg px-2 py-1 transition hover:bg-slate-800"
                 href="/profile"
               >
-                <p className="truncate text-sm font-medium text-slate-200">
-                  {user.full_name}
-                </p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <p className="truncate text-sm font-medium text-slate-200">
+                    {user.full_name}
+                  </p>
+
+                  <span className="hidden rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-300 sm:inline">
+                    {user.role}
+                  </span>
+                </div>
 
                 <p className="hidden truncate text-xs text-slate-500 sm:block">
                   {user.email}
@@ -196,13 +237,48 @@ export function AppShell({ user, children }: AppShellProps) {
               </Link>
             </div>
 
-            <button
-              className="shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 sm:px-4"
-              onClick={handleLogout}
-              type="button"
-            >
-              Log out
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                aria-label={
+                  unreadCount > 0
+                    ? `Notifications, ${unreadCount} unread`
+                    : "Notifications"
+                }
+                className="relative rounded-lg border border-slate-700 p-2.5 text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white"
+                href="/notifications"
+              >
+                <svg
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  <path d="M10 21h4" strokeLinecap="round" />
+                </svg>
+
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+
+              <button
+                className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 sm:px-4"
+                onClick={handleLogout}
+                type="button"
+              >
+                Log out
+              </button>
+            </div>
           </div>
         </header>
 

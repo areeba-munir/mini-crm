@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DeleteLeadDialog } from "@/components/leads/delete-lead-dialog";
@@ -14,7 +14,7 @@ import { listContacts } from "@/lib/contacts-api";
 import { deleteLead, listLeads } from "@/lib/leads-api";
 import type { Company } from "@/types/company";
 import type { Contact } from "@/types/contact";
-import type { Lead, LeadStage } from "@/types/lead";
+import type { Lead, LeadListFilters, LeadSort, LeadStage } from "@/types/lead";
 
 const leadStages: LeadStage[] = [
   "New",
@@ -24,7 +24,59 @@ const leadStages: LeadStage[] = [
   "Lost",
 ];
 
+type LeadFilterForm = {
+  query: string;
+  stage: LeadStage | "";
+  companyId: string;
+  contactId: string;
+  minEstimatedValue: string;
+  maxEstimatedValue: string;
+  expectedCloseFrom: string;
+  expectedCloseTo: string;
+  sortBy: LeadSort;
+};
+
+const emptyLeadFilterForm: LeadFilterForm = {
+  query: "",
+  stage: "",
+  companyId: "",
+  contactId: "",
+  minEstimatedValue: "",
+  maxEstimatedValue: "",
+  expectedCloseFrom: "",
+  expectedCloseTo: "",
+  sortBy: "newest",
+};
+
 const emptyValue = "\u2014";
+
+function buildLeadFilters(filterForm: LeadFilterForm): LeadListFilters {
+  return {
+    q: filterForm.query.trim() || undefined,
+    stage: filterForm.stage || undefined,
+    company_id: filterForm.companyId ? Number(filterForm.companyId) : undefined,
+    contact_id: filterForm.contactId ? Number(filterForm.contactId) : undefined,
+    min_estimated_value: filterForm.minEstimatedValue || undefined,
+    max_estimated_value: filterForm.maxEstimatedValue || undefined,
+    expected_close_from: filterForm.expectedCloseFrom || undefined,
+    expected_close_to: filterForm.expectedCloseTo || undefined,
+    sort_by: filterForm.sortBy,
+  };
+}
+
+function hasActiveLeadFilters(filters: LeadListFilters): boolean {
+  return Boolean(
+    filters.q ||
+    filters.stage ||
+    filters.company_id ||
+    filters.contact_id ||
+    filters.min_estimated_value ||
+    filters.max_estimated_value ||
+    filters.expected_close_from ||
+    filters.expected_close_to ||
+    (filters.sort_by && filters.sort_by !== "newest"),
+  );
+}
 
 function getStageClassName(stage: LeadStage) {
   switch (stage) {
@@ -73,7 +125,14 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [selectedStage, setSelectedStage] = useState<LeadStage | "">("");
+
+  const [draftFilters, setDraftFilters] = useState<LeadFilterForm>({
+    ...emptyLeadFilterForm,
+  });
+  const [appliedFilters, setAppliedFilters] = useState<LeadListFilters>({
+    sort_by: "newest",
+  });
+
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
 
@@ -92,10 +151,7 @@ export default function LeadsPage() {
       try {
         const [leadRecords, companyRecords, contactRecords] = await Promise.all(
           [
-            listLeads(
-              accessToken,
-              selectedStage ? { stage: selectedStage } : {},
-            ),
+            listLeads(accessToken, appliedFilters),
             listCompanies(accessToken),
             listContacts(accessToken),
           ],
@@ -130,7 +186,7 @@ export default function LeadsPage() {
     return () => {
       cancelled = true;
     };
-  }, [router, selectedStage, token]);
+  }, [appliedFilters, router, token]);
 
   const companyNamesById = new Map(
     companies.map((company) => [company.id, company.name]),
@@ -143,6 +199,8 @@ export default function LeadsPage() {
     ]),
   );
 
+  const hasActiveFilters = hasActiveLeadFilters(appliedFilters);
+
   function getCompanyName(lead: Lead) {
     return companyNamesById.get(lead.company_id) ?? "Unknown company";
   }
@@ -153,6 +211,24 @@ export default function LeadsPage() {
     }
 
     return contactNamesById.get(lead.contact_id) ?? "Unknown contact";
+  }
+
+  function handleApplyFilters(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setDataError("");
+    setIsDataLoading(true);
+    setAppliedFilters(buildLeadFilters(draftFilters));
+  }
+
+  function handleClearFilters() {
+    const clearedFilters = {
+      ...emptyLeadFilterForm,
+    };
+
+    setDraftFilters(clearedFilters);
+    setDataError("");
+    setIsDataLoading(true);
+    setAppliedFilters(buildLeadFilters(clearedFilters));
   }
 
   function openDeleteDialog(lead: Lead) {
@@ -220,7 +296,7 @@ export default function LeadsPage() {
 
   return (
     <AppShell user={user}>
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium text-blue-400">Sales</p>
 
@@ -231,40 +307,238 @@ export default function LeadsPage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="text-sm text-slate-300">
-            <span className="mb-2 block">Pipeline stage</span>
+        <Link
+          className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
+          href="/leads/new"
+        >
+          Add lead
+        </Link>
+      </section>
 
-            <select
-              className="min-w-44 rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
-              onChange={(event) => {
-                setDataError("");
-                setIsDataLoading(true);
-                setSelectedStage(event.target.value as LeadStage | "");
-              }}
-              value={selectedStage}
-            >
-              <option value="">All stages</option>
+      <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:p-6">
+        <div>
+          <p className="text-sm font-medium text-blue-400">
+            Advanced filtering
+          </p>
 
-              {leadStages.map((stage) => (
-                <option key={stage} value={stage}>
-                  {stage}
-                </option>
-              ))}
-            </select>
-          </label>
+          <h2 className="mt-1 text-xl font-semibold">Find opportunities</h2>
 
-          <Link
-            className="rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-500"
-            href="/leads/new"
-          >
-            Add lead
-          </Link>
+          <p className="mt-2 text-sm text-slate-400">
+            Combine text, relationship, value, date, stage, and sorting
+            criteria.
+          </p>
         </div>
+
+        <form className="mt-6" onSubmit={handleApplyFilters}>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="text-sm text-slate-300 sm:col-span-2">
+              <span className="mb-2 block">Search</span>
+
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
+                maxLength={200}
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    query: event.target.value,
+                  }))
+                }
+                placeholder="Title, source, or description"
+                type="search"
+                value={draftFilters.query}
+              />
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Pipeline stage</span>
+
+              <select
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    stage: event.target.value as LeadStage | "",
+                  }))
+                }
+                value={draftFilters.stage}
+              >
+                <option value="">All stages</option>
+
+                {leadStages.map((stage) => (
+                  <option key={stage} value={stage}>
+                    {stage}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Sort by</span>
+
+              <select
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    sortBy: event.target.value as LeadSort,
+                  }))
+                }
+                value={draftFilters.sortBy}
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="value_high">Value: high to low</option>
+                <option value="value_low">Value: low to high</option>
+                <option value="close_soon">Expected close: soonest</option>
+              </select>
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Company</span>
+
+              <select
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    companyId: event.target.value,
+                  }))
+                }
+                value={draftFilters.companyId}
+              >
+                <option value="">All companies</option>
+
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Contact</span>
+
+              <select
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    contactId: event.target.value,
+                  }))
+                }
+                value={draftFilters.contactId}
+              >
+                <option value="">All contacts</option>
+
+                {contacts.map((contact) => {
+                  const contactName = [contact.first_name, contact.last_name]
+                    .filter(Boolean)
+                    .join(" ");
+
+                  return (
+                    <option key={contact.id} value={contact.id}>
+                      {contactName}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Minimum value</span>
+
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
+                min="0"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    minEstimatedValue: event.target.value,
+                  }))
+                }
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={draftFilters.minEstimatedValue}
+              />
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Maximum value</span>
+
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-500"
+                min="0"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    maxEstimatedValue: event.target.value,
+                  }))
+                }
+                placeholder="0.00"
+                step="0.01"
+                type="number"
+                value={draftFilters.maxEstimatedValue}
+              />
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Expected close from</span>
+
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    expectedCloseFrom: event.target.value,
+                  }))
+                }
+                type="date"
+                value={draftFilters.expectedCloseFrom}
+              />
+            </label>
+
+            <label className="text-sm text-slate-300">
+              <span className="mb-2 block">Expected close to</span>
+
+              <input
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-blue-500"
+                onChange={(event) =>
+                  setDraftFilters((currentFilters) => ({
+                    ...currentFilters,
+                    expectedCloseTo: event.target.value,
+                  }))
+                }
+                type="date"
+                value={draftFilters.expectedCloseTo}
+              />
+            </label>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button
+              className="rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-300 transition hover:border-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isDataLoading}
+              onClick={handleClearFilters}
+              type="button"
+            >
+              Clear filters
+            </button>
+
+            <button
+              className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isDataLoading}
+              type="submit"
+            >
+              {isDataLoading ? "Loading..." : "Apply filters"}
+            </button>
+          </div>
+        </form>
       </section>
 
       <p className="mt-5 text-sm text-slate-400">
-        Total leads:{" "}
+        Matching leads:{" "}
         <span className="font-semibold text-white">{leads.length}</span>
       </p>
 
@@ -284,18 +558,34 @@ export default function LeadsPage() {
 
       {!isDataLoading && !dataError && leads.length === 0 && (
         <section className="mt-8 rounded-2xl border border-dashed border-slate-700 bg-slate-900 p-10 text-center">
-          <h2 className="text-lg font-semibold">No leads found</h2>
+          <h2 className="text-lg font-semibold">
+            {hasActiveFilters
+              ? "No leads match these filters"
+              : "No leads found"}
+          </h2>
 
           <p className="mt-2 text-sm text-slate-400">
-            Create a lead or select a different pipeline stage.
+            {hasActiveFilters
+              ? "Adjust or clear the filters to broaden your results."
+              : "Create your first sales opportunity."}
           </p>
 
-          <Link
-            className="mt-5 inline-flex rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
-            href="/leads/new"
-          >
-            Add your first lead
-          </Link>
+          {hasActiveFilters ? (
+            <button
+              className="mt-5 inline-flex rounded-lg border border-slate-700 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-600 hover:text-white"
+              onClick={handleClearFilters}
+              type="button"
+            >
+              Clear filters
+            </button>
+          ) : (
+            <Link
+              className="mt-5 inline-flex rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
+              href="/leads/new"
+            >
+              Add your first lead
+            </Link>
+          )}
         </section>
       )}
 
