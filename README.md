@@ -258,6 +258,31 @@ git diff --check
 
 Both ESLint and the optimized Next.js production build pass on the current `main` branch.
 
+## Design Decisions and Assumptions
+
+### Major Design Decisions
+
+- The application uses a separated frontend and backend architecture. Next.js provides the user interface, while FastAPI exposes a REST API.
+- PostgreSQL is used for persistent relational data, with SQLAlchemy providing database access.
+- Alembic manages database schema migrations so database changes remain reproducible.
+- JWT access tokens provide stateless authentication between the frontend and backend.
+- Argon2 is used for secure password hashing.
+- Role-based authorization protects administrative and managerial operations.
+- Companies act as parent records for related contacts and leads.
+- Lead filtering and sorting are performed by the backend to keep queries efficient and reusable.
+- CSV imports include a preview and validation step before records are written to the database.
+- A separate PostgreSQL database is used for automated tests.
+
+### Assumptions
+
+- Each contact belongs to one company.
+- Each lead belongs to one company and may optionally reference a contact from that company.
+- Leads use the stages New, Contacted, Qualified, Won, and Lost.
+- Authorized users can view CRM information, while privileged operations depend on their assigned role.
+- The frontend and backend run as separate services.
+- Local frontend development uses port 3000, and the backend uses port 8000.
+- Production deployments must provide secure environment variables and trusted CORS origins.
+
 ## Security Notes
 
 * Never commit `backend/.env` or `frontend/.env.local`.
